@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "dibuja.h": "c",
+        "complejos.h": "c",
+        "stdio.h": "c",
+        "wres.h": "c",
+        "stsbar.h": "c",
+        "wingdi.h": "c",
+        "tinycthread.h": "c",
+        "div.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
+}

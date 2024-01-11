@@ -1,0 +1,35 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "C/C++: cl.exe compilar archivo activo",
+            "command": "cl.exe",
+            "args": [
+                "/Zi",
+                "/EHsc",
+                "/nologo",
+                "/Ot",
+                "/Fo${fileDirname}\\intermediate\\",
+                "/Fd${fileDirname}\\intermediate\\",                
+                "/Fe${fileDirname}\\${fileBasenameNoExtension}.exe",
+                "${workspaceFolder}/*.c",
+                "user32.lib",
+                "Gdi32.lib",
+                "Comctl32.lib",
+                "menu.res"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Tarea generada por el depurador."
+        }
+    ],
+    "version": "2.0.0"
+}

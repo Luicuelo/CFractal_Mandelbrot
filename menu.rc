@@ -1,0 +1,45 @@
+#include <windows.h>
+#include "wres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_BITMAP1             BITMAP  DISCARDABLE     "LuisCG.bmp"
+/////////////////////////////////////////////////////////////////////////////
+
+dialogo DIALOGEX 6, 18, 204, 95
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    CONTROL         "",Picture,"Static",SS_BLACKFRAME,2,2,202,91
+    PUSHBUTTON      "Cerrar",BCerrar,141,62,40,14
+    CTEXT           "     La tecla 'T' inicia un ciclo de color.",Picture,65,38,120,12
+    CTEXT           "     Luis Cuesta © 2006",Picture,66,25,78,12
+    CONTROL         IDB_BITMAP1,Picture,"Static",SS_BITMAP,12,13,47,64,WS_EX_ACCEPTFILES
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+ImenuP MENU DISCARDABLE
+BEGIN
+    POPUP "&Archivo"
+    BEGIN
+        MENUITEM "&Nuevo",                      m_nuevo
+        MENUITEM "G&uardar",                    m_guardar
+        MENUITEM "&Salir",                      m_salir
+    END
+    POPUP "A&yuda"
+    BEGIN
+        MENUITEM "A&cerca De",                  m_acercade
+    END
+END
+
+
+
