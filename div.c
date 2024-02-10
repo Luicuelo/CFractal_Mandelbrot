@@ -55,7 +55,7 @@ void color(int i,BYTE r,BYTE g, BYTE b)
             memset (&Pixels[y+h-1][x],color,w);
 }
 
-int colini=30;
+
 
 void llenaColores(void){
     int i;
@@ -64,49 +64,17 @@ void llenaColores(void){
       bmi.bmiColors[0].rgbGreen = 0;
       bmi.bmiColors[0].rgbBlue = 0;
       bmi.bmiColors[0].rgbReserved = 0;
-    for (i=1;i<ncolores;i++)
-    {
-            int color=colini+i+130;
-            int color2=colini+i;
-            if (color>254) color=color-254;
-            if (color2>254) color2=color2-254;
-            bmi.bmiColors[i].rgbRed = color2;
-            bmi.bmiColors[i].rgbGreen = color2;
-            bmi.bmiColors[i].rgbBlue = color;
-            bmi.bmiColors[i].rgbReserved = 0;
-    }
 
-}
+    for (int i = 1; i < ncolores; i++) {
+        int red = ((i+10) * 4) % 256;  // Use a wider range of red values
+        int green = (i * 20) % 256;  // Use a wider range of green values
+        int blue = (i * 21) % 256;  // Use a wider range of blue values
 
-void _llenaColores2(void)
-{
-    int c;
-    int i;
-    if (colini-256>30) colini=30;
-    for (i=0;i<ncolores;i++)
-    {
-        c = i + colini;
-        if (c > 255)
-        {
-            c-= 256;
-        }
-
-        if (invierte && (i!=colMandel)) {
-                c=255-c;
-        }
-        if (c>100)
-        {
-            bmi.bmiColors[i].rgbRed = (c-40);
-            bmi.bmiColors[i].rgbGreen = (c-60);
-        }
-        else
-        {
-
-            bmi.bmiColors[i].rgbRed = c/2;
-            bmi.bmiColors[i].rgbGreen = c/2;
-            bmi.bmiColors[i].rgbBlue = c;
-        }
-        bmi.bmiColors[i].rgbReserved = 0;
+        int ca=(i+colini)  % ncolores;
+        bmi.bmiColors[ca].rgbRed = red;
+        bmi.bmiColors[ca].rgbGreen = green;
+        bmi.bmiColors[ca].rgbBlue = blue;
+        bmi.bmiColors[ca].rgbReserved = 0;
     }
 }
 

@@ -12,7 +12,7 @@ void fractalMouseDown(int X, int Y);
 void fractalMouseUp(void);
 void fractalTecla(BYTE tecla);
 void graba(void);
-BYTE calculaPuntoM(int c, int f);
+BYTE  calculaPuntoM(int c, int f);
 void vaciaMemoria();
 
 #ifndef DIBUJA_H

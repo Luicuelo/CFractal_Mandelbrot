@@ -31,6 +31,7 @@ int byd;
 int bxu;
 int byu;
 
+int colini;
 int tamPixelglobal;
 
 double inx;
@@ -85,7 +86,7 @@ BYTE calculaPuntoM(int c, int f)
 	if (inr >= maxiter)
 	{
 		// converge,conjunto
-		return (-1);
+		return (255);
 	}
 	else
 	{
@@ -104,7 +105,7 @@ void calculaPuntoCuadrado(Punto *p){
 	int yc=p->y;
 
 	maxiters=Memory[yc][xc];
-	if(maxiters>0||maxiters<0)
+	if(maxiters>0)
 	{
 			//ya calculado
 	}
@@ -117,9 +118,11 @@ void calculaPuntoCuadrado(Punto *p){
 	cuadradoR(p->x , p->y , p->tam,  p->tam,color );	
 }
 
-int calculaColor(int maxiters){	
-	if (maxiters<0) return 0;
-	return menormax(256-maxiters);
+int calculaColor(BYTE maxiters){	
+	if (maxiters==255) {
+		return 0;
+	}
+	return menormax(255-maxiters);
 }
 
 void calculaPuntoPixel(Punto *p){
@@ -129,9 +132,10 @@ void calculaPuntoPixel(Punto *p){
 	int xc=p->x;
 	int yc=p->y;
 	maxiters=Memory[yc][xc];
-	if(maxiters>0||maxiters<0)
+	if(maxiters==255)
 	{
-			//ya calculado
+			//ya calculado, maxiters>0||
+			
 	}
 	else {
 			maxiters=calculaPuntoM(xc, yc);
@@ -235,6 +239,7 @@ void comienza(void)
 	xi = -2.2;
 	yi = -1.5;
 
+	colini=0;
 	inx = (double)((TAMINI) / (wid));
 	iny = (double)((TAMINI) / (hgt));
 
