@@ -89,7 +89,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     ShowWindow (hwnd, nFunsterStil);
     UpdateWindow(hwnd);
     CreateDIB(hwnd);
-    hilos=threadpool_create(8, 16, 0);
+    hilos=threadpool_create(10, 200, 0);
     comienza();
 
     //threadpool_t *tmp;    

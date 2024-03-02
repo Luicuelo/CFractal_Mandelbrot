@@ -24,7 +24,7 @@ int trect;
 #define menormax(c) (c < 0 ? 0 : (c > 254 ? 254 : c)) // 255 es un valor reservado.
 
 
-double convergencia = 0.1;
+double convergencia = 0.2;
 bool botonapretado;
 int bxd;
 int byd;
@@ -56,6 +56,7 @@ BYTE calculaPuntoM(int c, int f)
 	int inr;
 	Comp z;
 	Comp last;
+	Comp aux;
 	Comp Sz;
 	nc(0, 0, Sz);
 
@@ -72,15 +73,16 @@ BYTE calculaPuntoM(int c, int f)
 	//int maxiter = 2 + log2(log2(zoom)) * 128;
 	int maxiter=50;
 
-	// for(inr = 0; ((inr < maxiter)  && ((mod=md(Sz)) <= 2)   && (resta<convergencia) ); inr++){
-	//((md(last)) <= 2)
-	for (inr = 0; inr < maxiter && (mdr(last)<16); inr++)
+	
+	double resta=0;
+	//for (inr = 0; inr < maxiter && (mdr(last)<16); inr++)
+	for(inr = 0; inr < maxiter  && md(Sz) <= 2  && resta<convergencia; inr++)
 	{
 		cuadSuma(last, z, Sz); // definida como una macro
 		asigna(last, Sz);
-		// rest(last,Sz,aux);
-		// resta=md(aux);
-		// resta=abs(md(Sz)-md(last));
+		 //rest(last,Sz,aux);
+		 //resta=md(aux);
+		 resta=abs(md(Sz)-md(last));
 	}
 
 	if (inr >= maxiter)
@@ -120,7 +122,7 @@ void calculaPuntoCuadrado(Punto *p){
 
 int calculaColor(BYTE maxiters){	
 	if (maxiters==255) {
-		return 0;
+		return 128;
 	}
 	return menormax(255-maxiters);
 }

@@ -1,5 +1,5 @@
-#define wid 800
-#define hgt 800
+#define wid 1000
+#define hgt 1000
 #define bits 8
 #define ncolores 256
 //#define colMandel 20
