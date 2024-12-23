@@ -34,6 +34,7 @@ int byu;
 int colini;
 int tamPixelglobal;
 
+double zoom=1.0;
 double inx;
 double iny;
 double xi;
@@ -71,7 +72,11 @@ BYTE calculaPuntoM(int c, int f)
 	//-------------------
 	
 	//int maxiter = 2 + log2(log2(zoom)) * 128;
-	int maxiter=50;
+	//int maxiter=50;
+
+	// Calcula el número máximo de iteraciones basado en el nivel de zoom
+    int maxiter =zoom * 50;
+	//int maxiter =50;
 
 	
 	double resta=0;
@@ -334,6 +339,8 @@ void reescala(void)
 	DrawDIB(principal);
 	inx *= factorx;
 	iny *= factory;
+
+	zoom= 1.0 / ((factorx+factory)/2.0);
 }
 //---------------------------------------------------------------------------
 void mueve(int x, int y, HWND hwnd)
