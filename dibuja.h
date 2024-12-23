@@ -4,16 +4,18 @@
 #include "threadpool.h"
 //---------------------------------------------------------------------------
 
-void dibuja(void);
-char * cadenaSave(void);
+void renderFractal(void);
+char * generateSaveFilename(void);
 void comienza(void);
-void fractalMouseMove(int X, int Y,HWND hwnd);
-void fractalMouseDown(int X, int Y);
+void onFractalMouseMove(int X, int Y, HWND hwnd);
+void onFractalMouseDown(int X, int Y);
+void onFractalMouseUp(void);
 void fractalMouseUp(void);
-void fractalTecla(BYTE tecla);
+void onFractalKeyPress(BYTE tecla);
 void graba(void);
-BYTE  calculaPuntoM(int c, int f);
-void vaciaMemoria();
+BYTE calculateMandelbrotPoint(int c, int f);
+void onClearMemory(void);
+void onInitializeFractal(void);
 
 #ifndef DIBUJA_H
 #define DIBUJA_H
@@ -23,6 +25,8 @@ typedef struct _punto {
   int y;
   int tam;
 } Punto;
+
+void onRepaint(void); // Declaración de onRepaint
 
 // Resto de las declaraciones y definiciones en dibuja.h
 

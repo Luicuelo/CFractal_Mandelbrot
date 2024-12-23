@@ -10,9 +10,9 @@
     #include <stdbool.h>
 #endif
 
-struct threadpool_t *hilos;
+struct threadpool_t *thread_pool;
 
-HWND principal;
+HWND main_window_handle;
 /*  Declare Windows procedure  */
 LRESULT CALLBACK WindowProcedure (HWND, UINT, WPARAM, LPARAM);
 HINSTANCE instancia;
@@ -57,8 +57,8 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
 
     r.left=0;
     r.top=0;
-    r.right=wid+1;
-    r.bottom=hgt+1;
+    r.right=window_width+1;
+    r.bottom=window_height+1;
     AdjustWindowRect(&r,WS_OVERLAPPEDWINDOW,TRUE);
 
 
@@ -79,28 +79,17 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
 
     /* Make the window visible on the screen */
 
-    principal=hwnd;
-    //int rs;
-    //rs=
-    //SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)wincl.hIcon );
-    //SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)wincl.hIcon );
-	CreateSBar(hwnd,"Iniciado",2);
-	//StartDlg(hwnd);
-    ShowWindow (hwnd, nFunsterStil);
+    main_window_handle = hwnd;
+    CreateSBar(hwnd, "Iniciado", 2);
+    ShowWindow(hwnd, nFunsterStil);
     UpdateWindow(hwnd);
     CreateDIB(hwnd);
-    hilos=threadpool_create(10, 200, 0);
-    comienza();
-
-    //threadpool_t *tmp;    
-    //tmp= threadpool_create(1,1,0);
-
+    thread_pool = threadpool_create(10, 200, 0);
+    onInitializeFractal(); // Cambiado de initializeFractalDrawing
 
     /* Run the message loop. It will run until GetMessage() returns 0 */
 
-    //PeekMessage (&messages, NULL, 0, 0)
-    //msg.message!= WM_QUI
-    while ((principal !=0) && GetMessage (&messages, NULL, 0, 0))
+    while ((main_window_handle != 0) && GetMessage (&messages, NULL, 0, 0))
     {
         /* Translate virtual-key messages into character messages */
         TranslateMessage(&messages);
@@ -108,7 +97,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
         DispatchMessage(&messages);
     }
 
-    threadpool_destroy(hilos,0);
+    threadpool_destroy(thread_pool,0);
     /* The program return-value is 0 - The value that PostQuitMessage() gave */
     UnregisterClass(szClassName,hThisInstance);
 
@@ -119,37 +108,44 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
 
 /*  This function is called by the Windows function DispatchMessage()  */
 
-void vaciaCola(void){
+void onClearMessageQueue(void) { // Cambiado de vaciaCola
     MSG msg;
-    while(PeekMessage (& msg, NULL, 0, 0,PM_REMOVE)){
-
-        switch (msg.message)   {
+    HWND currentHandle = main_window_handle; // Cache handle to avoid race condition
+    
+    if (currentHandle == NULL) {
+        return;
+    }
+    
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        switch (msg.message) {
             case WM_QUIT:
-                principal=0;
-            break;
+                main_window_handle = NULL;
+                return; // Exit immediately on quit
             case WM_DESTROY:
-                principal=0;
-            break;
+                main_window_handle = NULL;
+                return; // Exit immediately on destroy
             case WM_LBUTTONDOWN:
-            break;
             case WM_LBUTTONUP:
-            break;
             case WM_MOUSEMOVE:
-            break;
+                break;
             default:
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
         }
+        
+        // Check if window handle changed during processing
+        if (main_window_handle == NULL) {
+            break;
+        }
     }
 }
-void repinta(void)
-{
-    InvalidateRect(
-        principal, // handle of window with changed update region
-        NULL, // address of rectangle coordinates
-        FALSE // erase-background flag
-    );
 
+void onRepaint(void) { // Cambiado de repinta
+    InvalidateRect(
+        main_window_handle, // handle of window with changed update region
+        NULL,               // address of rectangle coordinates
+        FALSE               // erase-background flag
+    );
 }
 
 
@@ -185,10 +181,10 @@ void OnCommand(HWND hwnd, int wID, HWND hwndCtl, UINT wNotifyCode)
 				(DLGPROC) DialogFunc);
 		break;
         case m_guardar:
-            SaveDib(cadenaSave(),TRUE);
+            saveFractal(generateSaveFilename(), TRUE);
         break;
         case m_nuevo:
-            comienza();
+            onInitializeFractal(); // Cambiado de initializeFractalDrawing
         break;
         case m_salir:
             PostMessage(hwnd,WM_CLOSE,0,0);
@@ -208,9 +204,9 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
     switch (message)
     {
         case WM_DESTROY:
-            principal=0;
+            main_window_handle = 0;
         case WM_QUIT:
-            principal=0;
+            main_window_handle = 0;
         break;
         case WM_CREATE:
         break;
@@ -227,21 +223,21 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
             OnCommand(hwnd, wID, hwndCtl, wNotifyCode);
             break;
         case WM_PAINT:
-			BeginPaint(hwnd,&ps);
-            DrawDIB(hwnd);
-            EndPaint(hwnd,&ps);
+			BeginPaint(hwnd, &ps);
+            drawFractal(hwnd);
+            EndPaint(hwnd, &ps);
         break;
         case WM_LBUTTONDOWN:
-            fractalMouseDown(LOWORD(lParam), HIWORD(lParam));
+            onFractalMouseDown(LOWORD(lParam), HIWORD(lParam)); // Cambiado de fractalMouseDown
         break;
         case WM_LBUTTONUP:
-            fractalMouseUp();
+            onFractalMouseUp(); // Cambiado de fractalMouseUp
         break;
         case WM_MOUSEMOVE:
-            fractalMouseMove (LOWORD(lParam), HIWORD(lParam),hwnd );
+            onFractalMouseMove(LOWORD(lParam), HIWORD(lParam), hwnd); // Cambiado de fractalMouseMove
         break;
         case WM_CHAR:
-            fractalTecla((BYTE)wParam);
+            onFractalKeyPress((BYTE)wParam); // Cambiado de fractalTecla
         case WM_KEYDOWN:
         case WM_KEYUP:
 
@@ -251,3 +247,14 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
     return 0;
 }
+
+/*
+void reescala(void)
+{
+    double factorx; // Declarar factorx antes de su uso
+    double factory; // Declarar factory antes de su uso
+    factorx = (double)nwid / (double)(window_width);
+    factory = (double)nhgt / (double)(window_height);
+    global_pixel_size = (int)(1 / factorx) + 1;
+}
+*/

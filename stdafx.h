@@ -1,18 +1,18 @@
-// stdafx.h : include file for standard system include files,
-// or project specific include files that are used frequently, but
-// are changed infrequently
-//
+// stdafx.h: Archivo de inclusión para encabezados estándar del sistema
+// o encabezados específicos del proyecto que se usan con frecuencia pero cambian raramente.
 
 #pragma once
 
+// Excluir partes raramente usadas de los encabezados de Windows.
+#define WIN32_LEAN_AND_MEAN
 
-#define WIN32_LEAN_AND_MEAN		// Exclude rarely-used stuff from Windows headers
-// Windows Header Files:
+// Encabezados de Windows.
 #include <windows.h>
-// C RunTime Header Files
+
+// Encabezados de tiempo de ejecución de C.
 #include <stdlib.h>
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
 
-// TODO: reference additional headers your program requires here
+// TODO: Agregar referencias a encabezados adicionales que requiera el programa aquí.

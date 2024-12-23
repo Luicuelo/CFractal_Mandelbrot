@@ -1,11 +1,4 @@
-// This is a C Program
-///      Para aprovechar los puntos que ya estan calculados cuando hacemos un zoom utilizamos dos matrices
-///      Esto da lugar a imprecisiones en el c�lculo. Para activar definir rapido a la hora de compilar.
-///      Tambien se puede acelerar el calculo saliendo del bucle que calcula si una sucesion diverge cuando
-///      la distancia entre dos terminos es mayor que una fijada (5 por ejemplo).
 
-//#define zoomrapido
-#undef zoomrapido
 
 #include "complejos.h"
 #include "div.h"
@@ -17,208 +10,231 @@
 	#include <stdbool.h>
 #endif
 
-BYTE Memory[hgt][wid];
-int trect;
+BYTE Memory[window_height][window_width];
+int temp_rect;
 
 
 #define menormax(c) (c < 0 ? 0 : (c > 254 ? 254 : c)) // 255 es un valor reservado.
 
+// #define useConvergenceThreshold // Uncomment to enable convergence checking
 
-double convergencia = 0.2;
-bool botonapretado;
-int bxd;
-int byd;
-int bxu;
-int byu;
+const double ESCAPE_RADIUS_SQUARED = 4.0; // 2^2 = 4
+#ifdef useConvergenceThreshold
+const double CONVERGENCE_THRESHOLD = 1;
+#endif
+bool isColorRotationActive = false;
+bool isButtonPressed;
+int mouse_down_x;
+int mouse_down_y;
+int mouse_up_x;
+int mouse_up_y;
 
-int colini;
-int tamPixelglobal;
+int color_offset;
+int global_pixel_size;
 
-double inx;
-double iny;
-double xi;
-double yi;
+double current_zoom = 1.0;
+double absolute_zoom = 1.0; // Track total zoom from initial state
+int max_iterations = 50;
+double complex_step_x;
+double complex_step_y;
+double complex_origin_x;
+double complex_origin_y;
 
-const double TAMINI = 2.9;
+const double INITIALFRACTALSIZE = 2.9;
 
-bool imagencargada;
+bool isImageLoaded;
 //int maxiter = 150;
 char s[255]; // se utiliza en la barra de estado
 
 // int aciertos;
 
-void vaciaMemoria(){
-	 memset(Memory, 0, hgt * wid * sizeof(BYTE));
+extern HWND main_window_handle;
+extern struct threadpool_t *thread_pool;
+
+// Clear the memory buffer that stores calculated Mandelbrot iterations
+void onClearMemory() {
+    memset(Memory, 0, window_height * window_width * sizeof(BYTE));
 }
 
-BYTE calculaPuntoM(int c, int f)
+// Calculate if a point belongs to the Mandelbrot set
+// Returns 255 if in set, otherwise returns iteration count when it diverged
+BYTE calculateMandelbrotPoint(int c, int f)
 {
-	int inr;
+	int iterations;
 	Comp z;
-	Comp last;
-	Comp aux;
-	Comp Sz;
-	nc(0, 0, Sz);
+	Comp previous;
+	Comp difference;
+	Comp current;
+	nc(0, 0, current);
 
-	z.x = inx * c + xi;
-	z.y = iny * f + yi;
-	asigna(last, z);
+	// Convert pixel coordinates to complex plane coordinates
+	z.x = complex_step_x * c + complex_origin_x;
+	z.y = complex_step_y * f + complex_origin_y;
+	asigna(previous, z);
 
-
-	// What is the Mandelbrot set? It's the the set of all complex numbers z for which sequence defined by the iteration
-	// Sz(0) = z,    Sz(n+1) = Sz(n)*Sz(n) + z,    n=0,1,2, ...    (1)
-	// remains bounded
-	//-------------------
+	// Mandelbrot iteration: z(n+1) = z(n)^2 + c
+	// Check if sequence remains bounded (|z| <= 2)
 	
-	//int maxiter = 2 + log2(log2(zoom)) * 128;
-	int maxiter=50;
-
-	
-	double resta=0;
-	//for (inr = 0; inr < maxiter && (mdr(last)<16); inr++)
-	for(inr = 0; inr < maxiter  && md(Sz) <= 2  && resta<convergencia; inr++)
+#ifdef useConvergenceThreshold
+	double convergence_diff = 0.0;
+	for(iterations = 0; iterations < max_iterations && mdSquared(current) <= ESCAPE_RADIUS_SQUARED && convergence_diff < CONVERGENCE_THRESHOLD; iterations++)
 	{
-		cuadSuma(last, z, Sz); // definida como una macro
-		asigna(last, Sz);
-		 //rest(last,Sz,aux);
-		 //resta=md(aux);
-		 resta=abs(md(Sz)-md(last));
+		cuadSuma(previous, z, current);
+		asigna(previous, current);
+		rest(previous, current, difference);
+		convergence_diff = mdSquared(difference);
 	}
-
-	if (inr >= maxiter)
+#else
+	for(iterations = 0; iterations < max_iterations && mdSquared(current) <= ESCAPE_RADIUS_SQUARED; iterations++)
 	{
-		// converge,conjunto
+		cuadSuma(previous, z, current);
+		asigna(previous, current);
+	}
+#endif
+
+	if (iterations >= max_iterations)
+	{
+		// Point is in the Mandelbrot set
 		return (255);
 	}
 	else
 	{
-		// diverge.
-		//return menormax((C*(255/50))-inr);
-		return (inr);
-		//return menormax(inr);
+		// Point diverged
+		return (iterations);
 	}
 }
 
-void calculaPuntoCuadrado(Punto *p){
+// Calculate Mandelbrot value and draw a square block of pixels
+void calculateAndDrawSquare(Punto *p){
 
 	BYTE maxiters;
 	BYTE color;
 	int xc=p->x;
 	int yc=p->y;
 
+	// Check if point already calculated
 	maxiters=Memory[yc][xc];
 	if(maxiters>0)
 	{
-			//ya calculado
+			// Already calculated
 	}
 	else {
-			maxiters=calculaPuntoM(xc, yc);
+			// Calculate Mandelbrot value and store in memory
+			maxiters=calculateMandelbrotPoint(xc, yc);
 			Memory[yc][xc]=maxiters;
 	}
 	
-	color=calculaColor(maxiters);
-	cuadradoR(p->x , p->y , p->tam,  p->tam,color );	
+	color=calculateColor(maxiters);
+	drawSquare(p->x , p->y , p->tam,  p->tam,color );	
 }
 
-int calculaColor(BYTE maxiters){	
+// Convert iteration count to color value (0-255)
+// Scales colors based on current max_iterations for smooth gradients
+int calculateColor(BYTE maxiters){	
 	if (maxiters==255) {
-		return 128;
+		return 255; // Black for points in the set
 	}
-	return menormax(255-maxiters);
+	// Scale color based on max_iterations for better distribution
+	int scaled_color = (int)((double)maxiters * 254.0 / (double)max_iterations);
+	return menormax(254 - scaled_color);
 }
 
-void calculaPuntoPixel(Punto *p){
+// Calculate Mandelbrot value and draw a single pixel
+void calculateAndDrawPixel(Punto *p){
 		
 	BYTE maxiters;
 	BYTE color;
 	int xc=p->x;
 	int yc=p->y;
+	
+	// Check if point already calculated
 	maxiters=Memory[yc][xc];
 	if(maxiters==255)
 	{
-			//ya calculado, maxiters>0||
+			// Already calculated
 			
 	}
 	else {
-			maxiters=calculaPuntoM(xc, yc);
+			// Calculate Mandelbrot value and store in memory
+			maxiters=calculateMandelbrotPoint(xc, yc);
 			Memory[yc][xc]=maxiters;
 	}
 	
-	color=calculaColor(maxiters);
-	setPixel(p->x , p->y,color);	
+	color=calculateColor(maxiters);
+	drawPixel(p->x , p->y,color);	
 }
 
 
-void dibuja(void)
+// Progressive fractal rendering using multiple passes with decreasing block sizes
+// Starts with large blocks and refines to individual pixels for smooth user experience
+void renderFractal(void)
 {
 
 	int a;
 	int min = 1000;
-	imagencargada = FALSE;
+	isImageLoaded = FALSE;
 
 	int i;
 	int j;
-	int tamPixelInicial = 256;
+	int initial_block_size = 256;
 
-
-
+	// Progressive rendering: 9 passes from 256x256 blocks down to 1x1 pixels
 	for (int r = 0; r < 9; r++)
 	{
 
-		int ttamPixelActual = tamPixelInicial / (pow(2 ,r));
-		if (ttamPixelActual>=tamPixelglobal) continue;
-		//if(soloUnaVez && ttamPixelActual>1)continue;
-	    //Tenemos que evitar calcular el punto que ya esta calculado en el paso anterior. (El central)
+		int current_block_size = initial_block_size >> r; // Bit shift is faster than pow(2,r)
+		if (current_block_size>=global_pixel_size) continue;
+		
+		// Create work items for thread pool
 		Punto p;
-		for (i = 0; i*ttamPixelActual < wid - ttamPixelActual; i += 1) //eje x empieza a la izquierda
+		for (i = 0; i*current_block_size < window_width - current_block_size; i += 1)
 		{				
-			for (j = 0; j*ttamPixelActual < hgt - ttamPixelActual; j += 1) // esto es el eje i, empieza en la esquina superior y va bajando		
+			for (j = 0; j*current_block_size < window_height - current_block_size; j += 1)
 			{				
-				p.x=i*ttamPixelActual;
-				p.y=j*ttamPixelActual;	
-				p.tam=ttamPixelActual;
-				//zoom=((double)((TAMINI)/(wid))/inx)*100;
-				//p.zoom=zoom;			
-				if (ttamPixelActual <= 1) {		
-					//este punto ya se calculo en el tamaño anterior.
-					//if (!(i % 2 == 0) && !(j % 2 == 0)) continue;													
-					threadpool_add(hilos, calculaPuntoPixel,&p,sizeof(Punto));
+				p.x=i*current_block_size;
+				p.y=j*current_block_size;	
+				p.tam=current_block_size;
+				
+				if (current_block_size <= 1) {		
+					// Final pass: individual pixels
+					threadpool_add(thread_pool, calculateAndDrawPixel,&p,sizeof(Punto));
 				}			
 				else {
-					threadpool_add(hilos, calculaPuntoCuadrado,&p,sizeof(Punto));
+					// Early passes: square blocks
+					threadpool_add(thread_pool, calculateAndDrawSquare,&p,sizeof(Punto));
 				}  
 			}
 		}
 
-
-		threadpool_wait_all(hilos);
-		DrawDIB(principal);
-		vaciaCola();
-	
-		
+		// Wait for all threads to complete this pass
+		threadpool_wait_all(thread_pool);
+		drawFractal(main_window_handle);
+		onClearMessageQueue();
 	}
 	wsprintf(s, "Fractal %d %%", 100);
 	UpdateStatusBar(s, 0, 0);
-	imagencargada = TRUE;
+	isImageLoaded = TRUE;
 }
 
-int pintaSel(HDC hDC)
+// Draw the selection rectangle when user is dragging to select zoom area
+int drawSelectionRectangle(HDC hDC)
 {
 	HPEN oldpen;
 	HBRUSH oldbr;
-	if (imagencargada)
+	if (isImageLoaded)
 	{
-		if (botonapretado)
+		if (isButtonPressed)
 		{
 
 			int rs;
 			HBRUSH br;
+			// Create green dashed pen for selection rectangle
 			HPEN pen1 = CreatePen(PS_DASH, 1, RGB(50, 255, 50));
 			br = (HBRUSH)GetStockObject(HOLLOW_BRUSH);
 			oldpen = (HPEN)SelectObject(hDC, pen1);
 			oldbr = (HBRUSH)SelectObject(hDC, br);
 			SelectObject(hDC, br);
-			rs = Rectangle(hDC, bxd, byd, bxu, byu);
+			rs = Rectangle(hDC, mouse_down_x, mouse_down_y, mouse_up_x, mouse_up_y);
 			SelectObject(hDC, oldpen);
 			DeleteObject(pen1);
 			SelectObject(hDC, oldbr);
@@ -231,230 +247,249 @@ int pintaSel(HDC hDC)
 //---------------------------------------------------------------------------
 
 
-void comienza(void)
-{
-	bxd = 0;
-	byd = 0;
-	bxu = wid;
-	byu = hgt;
+// Initialize fractal to default view (full Mandelbrot set)
+void onInitializeFractal(void) {
+    // Reset mouse selection area
+    mouse_down_x = 0;
+    mouse_down_y = 0;
+    mouse_up_x = window_width;
+    mouse_up_y = window_height;
 
-	xi = -2.2;
-	yi = -1.5;
+    // Set initial complex plane coordinates (standard Mandelbrot view)
+    complex_origin_x = -2.2;
+    complex_origin_y = -1.5;
 
-	colini=0;
-	inx = (double)((TAMINI) / (wid));
-	iny = (double)((TAMINI) / (hgt));
+    color_offset = 0;
+    isColorRotationActive = false; // Reset color rotation
+    absolute_zoom = 1.0; // Reset absolute zoom
+    
+    // Calculate step size for converting pixels to complex coordinates
+    complex_step_x = (double)((INITIALFRACTALSIZE) / (window_width));
+    complex_step_y = (double)((INITIALFRACTALSIZE) / (window_height));
 
-	tamPixelglobal=wid;
-	sprintf(s, "Plano Complejo: %1.2f/%1.2f:%1.2f/%1.2f ", xi, yi, xi + TAMINI, yi + TAMINI);
-	UpdateStatusBar(s, 1, 0);
-#ifdef zoomrapido
-	borraPixels2();
-#endif
-	// invierte=true;
-	vaciaMemoria();
-	llenaColores();
+    global_pixel_size = window_width;
+    sprintf(s, "Complex Plane: %1.2f/%1.2f:%1.2f/%1.2f ", complex_origin_x, complex_origin_y, complex_origin_x + INITIALFRACTALSIZE, complex_origin_y + INITIALFRACTALSIZE);
+    UpdateStatusBar(s, 1, 0);
 
-	cuadradoR(0 , 0 ,wid,  hgt, 0);
-	DrawDIB(principal);
-	vaciaCola();
-	dibuja();
+    onClearMemory();
+    fillColors();
+
+    drawSquare(0, 0, window_width, window_height, 0);
+    drawFractal(main_window_handle);
+    onClearMessageQueue();
+    renderFractal();
 }
 
-// This function expands the Memory array to fill the entire space, leaving the points in between as zero
-/*
+
+// Expand previously calculated memory region to fill screen when zooming
+// Reuses existing calculations to provide immediate visual feedback
 void expandMemory(int startX, int startY, int newWidth, int newHeight, double scaleX, double scaleY) {
-    BYTE **oldMemoryToExpand = (BYTE **)malloc(newHeight * sizeof(BYTE *));
-    for (int i = 0; i < newHeight; i++) {
-        oldMemoryToExpand[i] = (BYTE *)malloc(newWidth * sizeof(BYTE));
+    // Validate input parameters to prevent overflow
+    if (startX < 0 || startY < 0 || newWidth <= 0 || newHeight <= 0 ||
+        startX >= window_width || startY >= window_height ||
+        scaleX <= 0.0 || scaleY <= 0.0) {
+        return;
     }
 
-    // Copy oldMemoryToExpand
-    for (int i = 0; i < newHeight; i++) {
-        memcpy(oldMemoryToExpand[i], &Memory[startY + i][startX], newWidth);  
+    // Check for potential integer overflow in malloc calculation
+    if (newWidth > INT_MAX / newHeight || (size_t)newWidth * newHeight > SIZE_MAX / sizeof(BYTE)) {
+        return;
     }
-    vaciaMemoria();
 
-    for (int i = 0; i < newHeight; i++) {
-        for (int j = 0; j < newWidth; j++) {
-			int posy=(int)(i / scaleY);
-			int posx=(int)(j / scaleX);
-            Memory[posy][posx] = oldMemoryToExpand[i][j];
-			cuadradoR(posx,posy,tamPixelglobal,tamPixelglobal,calculaColor(Memory[posy][posx] ));
+    BYTE *oldMemoryToExpand = (BYTE *)malloc((size_t)newHeight * newWidth * sizeof(BYTE));
+    if (oldMemoryToExpand == NULL) {
+        // Handle memory allocation failure
+        return;
+    }
+
+    // Copy selected region from current memory
+    for (int i = 0; i < newHeight && (startY + i) < window_height; i++) {
+        int copyWidth = (startX + newWidth <= window_width) ? newWidth : (window_width - startX);
+        if (copyWidth > 0) {
+            memcpy(&oldMemoryToExpand[i*newWidth], &Memory[startY + i][startX], copyWidth);
         }
     }
-    // Free the memory for each row
-    for (int i = 0; i < newHeight; i++) {
-        free(oldMemoryToExpand[i]);
-    }
-    free(oldMemoryToExpand);
-}
-*/
+    onClearMemory();
 
-void expandMemory(int startX, int startY, int newWidth, int newHeight, double scaleX, double scaleY) {
-
-    BYTE *oldMemoryToExpand = (BYTE *)malloc(newHeight * newWidth* sizeof(BYTE));
- 
-    // Copy oldMemoryToExpand
-    for (int i = 0; i < newHeight; i++) {
-        memcpy(&oldMemoryToExpand[i*newWidth], &Memory[startY + i][startX], newWidth);  		
-    }
-    vaciaMemoria();
-
+    // Scale up the copied region to fill the entire screen
     for (int i = 0; i < newHeight; i++) {
         for (int j = 0; j < newWidth; j++) {
-			int posy=(int)(i / scaleY);
-			int posx=(int)(j / scaleX);
-            Memory[posy][posx] = oldMemoryToExpand[i*newWidth+j];
-			cuadradoR(posx,posy,tamPixelglobal,tamPixelglobal,calculaColor(Memory[posy][posx] ));
+            int posy = (int)(i / scaleY);
+            int posx = (int)(j / scaleX);
+            
+            // Bounds checking to prevent buffer overflow
+            if (posy >= 0 && posy < window_height && posx >= 0 && posx < window_width) {
+                Memory[posy][posx] = oldMemoryToExpand[i*newWidth+j];
+                drawSquare(posx,posy,global_pixel_size,global_pixel_size,calculateColor(Memory[posy][posx]));
+            }
         }
     }
 
     free(oldMemoryToExpand);
 }
 
-void reescala(void)
+// Rescale and zoom into the selected area of the fractal
+void rescaleView(void)
 {
+	// Update complex plane origin based on mouse selection
+	complex_origin_x += complex_step_x * (double)mouse_down_x;
+	complex_origin_y += complex_step_y * (double)mouse_down_y;
 
-	//xi , yi son las coordenadas del origen en el plano complejo.
-	//inx , iny es la escala del plano complejo. Si multiplicamos la posición del pixel en la imagen nos da el punto correspondiente en el plano complejo.
-	xi += inx * (double)bxd;
-	yi += iny * (double)byd;
+	// Calculate dimensions of selected rectangle
+	int newWidth = (mouse_up_x - mouse_down_x + 1);
+	int newHeight = (mouse_up_y - mouse_down_y + 1);
 
-	//(bxu - bxd) es el ancho del nuevo rectangulo.
-	//(byu - byd) es el alto del nuevo rectangulo.
-	int nwid=(bxu - bxd+1) ;
-	int nhgt=(byu - byd+1) ;
+	// Calculate zoom factors
+	double factorX = (double)newWidth / (double)(window_width);
+	double factorY = (double)newHeight / (double)(window_height);
 
-	double factorx=(double)nwid / (double)(wid);
-	double factory=(double)nhgt / (double)(hgt);
+	// Update pixel size for progressive rendering
+	global_pixel_size = (int)(1/factorX) + 1;
+	
+	// Expand existing calculations to fill screen
+	expandMemory(mouse_down_x, mouse_down_y, newWidth, newHeight, factorX, factorY);
+	drawFractal(main_window_handle);
+	
+	// Update complex plane step size
+	complex_step_x *= factorX;
+	complex_step_y *= factorY;
 
-	tamPixelglobal=(int)(1/factorx)+1;
-	expandMemory (bxd,byd, nwid ,nhgt,factorx, factory);
-	DrawDIB(principal);
-	inx *= factorx;
-	iny *= factory;
+	// Calculate absolute zoom from initial state
+	double zoom_factor = 1.0 / ((factorX + factorY) / 2.0);
+	absolute_zoom *= zoom_factor;
+	
+	// Adaptive max_iterations based on absolute zoom level
+	max_iterations = (int)(50 + log2(absolute_zoom) * 50);
+	if (max_iterations < 50) max_iterations = 50;
+	if (max_iterations > 2000) max_iterations = 2000;
+	
+	// Debug: show zoom and iterations in status bar
+	sprintf(s, "Zoom: %.1fx, Iterations: %d", absolute_zoom, max_iterations);
+	UpdateStatusBar(s, 0, 0);
 }
 //---------------------------------------------------------------------------
-void mueve(int x, int y, HWND hwnd)
+// Handle mouse movement during selection rectangle drawing
+void handleMouseMove(int x, int y, HWND hwnd)
 {
 	HDC hDC;
-	double txi;
-	double tyi;
-	double txf;
-	double tyf;
+	double complexStartX, complexStartY;
+	double complexEndX, complexEndY;
 
-	if (imagencargada && botonapretado)
+	if (isImageLoaded && isButtonPressed)
 	{
-		int anchoR;
-		int altoR;
-		bxu = x;
-		byu = y;
-		anchoR = (bxu - bxd);
-		altoR = (byu - byd);
-		((anchoR) < (altoR)) ? (bxu = bxd + altoR) : (byu = byd + anchoR);
+		int rectWidth, rectHeight;
+		
+		// Update mouse position
+		mouse_up_x = x;
+		mouse_up_y = y;
+		
+		// Make selection rectangle square (maintain aspect ratio)
+		rectWidth = (mouse_up_x - mouse_down_x);
+		rectHeight = (mouse_up_y - mouse_down_y);
+		((rectWidth) < (rectHeight)) ? (mouse_up_x = mouse_down_x + rectHeight) : (mouse_up_y = mouse_down_y + rectWidth);
 
-		DrawDIB(hwnd);
+		// Redraw fractal and selection rectangle
+		drawFractal(hwnd);
 		hDC = GetDC(hwnd);
-		pintaSel(hDC);
+		drawSelectionRectangle(hDC);
 
-		wsprintf(s, " Posicion: %d/%d : %d/%d", bxd, byd, bxu, byu);
+		// Update status bar with pixel coordinates
+		wsprintf(s, " Position: %d/%d : %d/%d", mouse_down_x, mouse_down_y, mouse_up_x, mouse_up_y);
 		UpdateStatusBar(s, 0, 0);
 
-		txi = (xi + inx * (double)bxd);
-		tyi = (yi + iny * (double)byd);
+		// Calculate complex plane coordinates for status display
+		complexStartX = (complex_origin_x + complex_step_x * (double)mouse_down_x);
+		complexStartY = (complex_origin_y + complex_step_y * (double)mouse_down_y);
 
-		txf = (xi + inx * (double)bxu);
-		tyf = (yi + iny * (double)byu);
+		complexEndX = (complex_origin_x + complex_step_x * ((double)window_width) + complex_origin_x) * 100.0;
+		complexEndY = (complex_origin_y + complex_step_y * (double)mouse_up_y);
 
-		sprintf(s, "Plano Complejo: %1.2f/%1.2f:%1.2f/%1.2f ", txi, tyi, txf, tyf);
+		sprintf(s, "Complex Plane: %1.2f/%1.2f:%1.2f/%1.2f ", complexStartX, complexStartY, complexEndX, complexEndY);
 		UpdateStatusBar(s, 1, 0);
 
 		ReleaseDC(hwnd, hDC);
 	}
 }
 
-char *cadenaSave(void)
+// Generate filename for saving fractal based on current view coordinates
+char *generateSaveFilename(void)
 {
 
-	double txi = (xi) * 100.0;
-	double tyi = (yi) * 100.0;
+	double txi = (complex_origin_x) * 100.0;
+	double tyi = (complex_origin_y) * 100.0;
 
-	double txf = (inx * ((double)(wid)) + xi) * 100.0;
-	double tyf = (iny * ((double)(hgt)) + yi) * 100.0;
+	double txf = (complex_step_x * ((double)(window_width)) + complex_origin_x) * 100.0;
+	double tyf = (complex_step_y * ((double)(window_height)) + complex_origin_y) * 100.0;
 
 	sprintf(s, "Fractal%2.0f_%2.0f_%2.0f_%2.0f.bmp ", txi, tyi, txf, tyf);
 	return (s);
 }
-void arriba(void)
+// Handle mouse button release - complete zoom operation
+void onMouseUp(void)
 {
-
-	if (imagencargada)
+	if (isImageLoaded)
 	{
-		botonapretado = FALSE;
-		reescala();
-		dibuja();
+		isButtonPressed = FALSE;
+		rescaleView();
+		onRepaint();
+		renderFractal();
 	}
 }
 
-void abajo(int x, int y)
+// Handle mouse button press - start selection rectangle
+void onMouseDown(int x, int y)
 {
-	if (imagencargada)
+	if (isImageLoaded)
 	{
-		bxd = x;
-		byd = y;
-		botonapretado = TRUE;
+		mouse_down_x = x;
+		mouse_down_y = y;
+		isButtonPressed = TRUE;
 	}
 }
 
 //---------------------------------------------------------------------------
-bool rotCol = false;
-void eRotCol(void)
+
+// Animate color rotation effect
+void animateColorRotation(void)
 {
-	while ((rotCol) && (principal != 0))
+	while ((isColorRotationActive) && (main_window_handle != 0))
 	{
-		colini = colini + 1;
-		if (colini>254) colini=0;
-		llenaColores();
-		if (principal != 0)
-			DrawDIB(principal);
-		sprintf(s, "Color: %d ", colini);
+		color_offset = color_offset + 1;
+		if (color_offset>254) color_offset=0;
+		fillColors();
+		if (main_window_handle != 0)
+			drawFractal(main_window_handle);
+		sprintf(s, "Color: %d ", color_offset);
 		UpdateStatusBar(s, 0, 0);
 		Sleep(50);
-		vaciaCola();
+		onClearMessageQueue(); // Cambiado de vaciaCola
 	}
 }
 
-void fractalTecla(BYTE tecla)
-{
-	if (tecla == 't' || tecla == 'T')
-	{
-		rotCol = !rotCol;
-		eRotCol();
-	}
-	if (tecla == 'i' || tecla == 'I')
-	{
-		invierte = !invierte;
-		llenaColores();
-		if (principal != 0)
-			DrawDIB(principal);
-	}
+void onFractalKeyPress(BYTE tecla) {
+    if (tecla == 't' || tecla == 'T') {
+        isColorRotationActive = !isColorRotationActive;
+        animateColorRotation();
+    }
+    if (tecla == 'i' || tecla == 'I') {
+        invierte = !invierte;
+        fillColors();
+        if (main_window_handle != 0)
+            drawFractal(main_window_handle);
+    }
 }
 
-void fractalMouseMove(int X, int Y, HWND hwnd)
-{
-	mueve(X, Y, hwnd);
+void onFractalMouseMove(int X, int Y, HWND hwnd) {
+    handleMouseMove(X, Y, hwnd);
 }
 //---------------------------------------------------------------------------
 
-void fractalMouseDown(int X, int Y)
-{
-	abajo(X, Y);
+void onFractalMouseDown(int X, int Y) {
+    onMouseDown(X, Y);
 }
 //---------------------------------------------------------------------------
 
-void fractalMouseUp(void)
-{
-	arriba();
+void onFractalMouseUp(void) {
+    onMouseUp();
 }
 //---------------------------------------------------------------------------

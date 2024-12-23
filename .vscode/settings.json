@@ -7,7 +7,14 @@
         "stsbar.h": "c",
         "wingdi.h": "c",
         "tinycthread.h": "c",
-        "div.h": "c"
+        "div.h": "c",
+        "stdlib.h": "c",
+        "threadpool.h": "c"
     },
-    "C_Cpp.errorSquiggles": "disabled"
+    "C_Cpp.errorSquiggles": "disabled",
+    "geminicodeassist.languages": [
+        "c"
+    ],
+    "geminicodeassist.codeGenerationPaneViewEnabled": true,
+    "geminicodeassist.chat.enableStreaming": true
 }

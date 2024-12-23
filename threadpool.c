@@ -187,6 +187,10 @@ int threadpool_add(threadpool_t *pool, void (*function)(void *),
         /* Add task to queue */
 
         void * targument= malloc(argument_size);
+        if (targument == NULL) {
+            err = threadpool_lock_failure;
+            break;
+        }
         memcpy(targument, argument, argument_size);
 
         pool->queue[pool->tail].function = function;
@@ -263,15 +267,18 @@ int threadpool_free(threadpool_t *pool)
     /* Did we manage to allocate ? */
     if(pool->threads) {
         free(pool->threads);
+        pool->threads = NULL;
 
-        for(int i = 0; i < pool->queue_size; i++) {
-            if(pool->queue[i].argument!=0) {
-                free(pool->queue[i].argument);
-                pool->queue[i].argument=0;
+        if(pool->queue) {
+            for(int i = 0; i < pool->queue_size; i++) {
+                if(pool->queue[i].argument != NULL) {
+                    free(pool->queue[i].argument);
+                    pool->queue[i].argument = NULL;
+                }
             }
+            free(pool->queue);
+            pool->queue = NULL;
         }
-
-        free(pool->queue);
 
         /* Because we allocate pool->threads after initializing the
            mutex and condition variable, we're sure they're
@@ -280,6 +287,7 @@ int threadpool_free(threadpool_t *pool)
         mtx_destroy(&(pool->lock));
         cnd_destroy(&(pool->notify));
         cnd_destroy(&(pool->queue_notify));
+        cnd_destroy(&(pool->all_tasks_done));
     }
     free(pool);
     return 0;
@@ -290,6 +298,15 @@ static void *threadpool_thread(void *threadpool)
 {
     threadpool_t *pool = (threadpool_t *)threadpool;
     threadpool_task_t task;
+    
+    if (pool == NULL) {
+        thrd_exit(0);
+        return NULL;
+    }
+
+    // Initialize task to avoid uninitialized memory
+    task.function = NULL;
+    task.argument = NULL;
 
     for(;;) {
          /* Lock must be taken to wait on conditional variable */
@@ -312,7 +329,7 @@ static void *threadpool_thread(void *threadpool)
         task.argument = pool->queue[pool->head].argument; //es una variable local  a la funcion del hilo, 
                                                           //no va a cambiar aunque se encole otra tarea 
 
-        pool->queue[pool->head].argument=0;//ha quedado copiado, y será destruido
+        pool->queue[pool->head].argument = NULL;//ha quedado copiado, y será destruido
 
         //DebugPrint(" Arranca Hilo %d, hay tareas %d\n",(pool->head + 1) % pool->queue_size,pool->count-1);
         pool->head = (pool->head + 1) % pool->queue_size;
@@ -324,33 +341,42 @@ static void *threadpool_thread(void *threadpool)
         mtx_unlock(&(pool->lock));
 
         /* Get to work */
-        (*(task.function))(task.argument);
+        if (task.function != NULL) {
+            (*(task.function))(task.argument);
+        }
 
-        if (task.argument) free(task.argument);
-        task.argument=0;
+        if (task.argument != NULL) {
+            free(task.argument);
+            task.argument = NULL;
+        }
+        
         /* Lock the mutex before accessing the task counter and condition variable */
         mtx_lock(&(pool->lock));
 
-
         //DebugPrint(" i:%d , j:%d , tam:%d\n",((punto*)(task.argument))->i,((punto*)(task.argument))->j,((punto*)(task.argument))->tam);    
         /* If all tasks are done, signal the condition variable */
-        if(pool->count==0) {
+        if(pool->count == 0) {
             cnd_signal(&(pool->all_tasks_done));
         }        
         /* Unlock the mutex */
         mtx_unlock(&(pool->lock));
     }
 
-    if (task.argument) free(task.argument);// si se esta cerrando
+    // Clean up any remaining task argument on shutdown
+    if (task.argument != NULL) {
+        free(task.argument);
+        task.argument = NULL;
+    }
+    
     pool->started--;
 
-    if(pool->count==0) {
+    if(pool->count == 0) {
         cnd_signal(&(pool->all_tasks_done));
     }
 
     mtx_unlock(&(pool->lock));
     thrd_exit(0);
-    return(NULL);
+    return NULL;
 }
 
 /* En el hilo principal, espera a que todas las tareas se hayan completado */

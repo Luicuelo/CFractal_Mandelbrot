@@ -1,7 +1,7 @@
-#define wid 1000
-#define hgt 1000
-#define bits 8
-#define ncolores 256
+#define window_width 1000
+#define window_height 1000
+#define color_depth 8
+#define color_count 256
 //#define colMandel 20
 
 #define colMandel 0
