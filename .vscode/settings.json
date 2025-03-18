@@ -7,7 +7,8 @@
         "stsbar.h": "c",
         "wingdi.h": "c",
         "tinycthread.h": "c",
-        "div.h": "c"
+        "div.h": "c",
+        "stdlib.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

@@ -35,6 +35,7 @@ int colini;
 int tamPixelglobal;
 
 double zoom=1.0;
+int maxiter=50;
 double inx;
 double iny;
 double xi;
@@ -75,7 +76,7 @@ BYTE calculaPuntoM(int c, int f)
 	//int maxiter=50;
 
 	// Calcula el número máximo de iteraciones basado en el nivel de zoom
-    int maxiter =zoom * 50;
+
 	//int maxiter =50;
 
 	
@@ -127,7 +128,7 @@ void calculaPuntoCuadrado(Punto *p){
 
 int calculaColor(BYTE maxiters){	
 	if (maxiters==255) {
-		return 128;
+		return 255; //negro
 	}
 	return menormax(255-maxiters);
 }
@@ -266,40 +267,15 @@ void comienza(void)
 	dibuja();
 }
 
-// This function expands the Memory array to fill the entire space, leaving the points in between as zero
-/*
-void expandMemory(int startX, int startY, int newWidth, int newHeight, double scaleX, double scaleY) {
-    BYTE **oldMemoryToExpand = (BYTE **)malloc(newHeight * sizeof(BYTE *));
-    for (int i = 0; i < newHeight; i++) {
-        oldMemoryToExpand[i] = (BYTE *)malloc(newWidth * sizeof(BYTE));
-    }
-
-    // Copy oldMemoryToExpand
-    for (int i = 0; i < newHeight; i++) {
-        memcpy(oldMemoryToExpand[i], &Memory[startY + i][startX], newWidth);  
-    }
-    vaciaMemoria();
-
-    for (int i = 0; i < newHeight; i++) {
-        for (int j = 0; j < newWidth; j++) {
-			int posy=(int)(i / scaleY);
-			int posx=(int)(j / scaleX);
-            Memory[posy][posx] = oldMemoryToExpand[i][j];
-			cuadradoR(posx,posy,tamPixelglobal,tamPixelglobal,calculaColor(Memory[posy][posx] ));
-        }
-    }
-    // Free the memory for each row
-    for (int i = 0; i < newHeight; i++) {
-        free(oldMemoryToExpand[i]);
-    }
-    free(oldMemoryToExpand);
-}
-*/
 
 void expandMemory(int startX, int startY, int newWidth, int newHeight, double scaleX, double scaleY) {
 
     BYTE *oldMemoryToExpand = (BYTE *)malloc(newHeight * newWidth* sizeof(BYTE));
- 
+   if (oldMemoryToExpand == NULL) {
+        // Handle memory allocation failure
+        return;
+    }
+
     // Copy oldMemoryToExpand
     for (int i = 0; i < newHeight; i++) {
         memcpy(&oldMemoryToExpand[i*newWidth], &Memory[startY + i][startX], newWidth);  		
@@ -320,7 +296,6 @@ void expandMemory(int startX, int startY, int newWidth, int newHeight, double sc
 
 void reescala(void)
 {
-
 	//xi , yi son las coordenadas del origen en el plano complejo.
 	//inx , iny es la escala del plano complejo. Si multiplicamos la posición del pixel en la imagen nos da el punto correspondiente en el plano complejo.
 	xi += inx * (double)bxd;
@@ -340,7 +315,12 @@ void reescala(void)
 	inx *= factorx;
 	iny *= factory;
 
-	zoom= 1.0 / ((factorx+factory)/2.0);
+	// Ajustar maxiter en función del nivel de zoom, con un límite superior
+	zoom = 1.0 / ((factorx + factory) / 2.0);
+	maxiter = 150 + log2(log2(zoom)) * 50;
+	if (maxiter > 300) {
+		maxiter = 300; // Límite superior para maxiter
+	}
 }
 //---------------------------------------------------------------------------
 void mueve(int x, int y, HWND hwnd)

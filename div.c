@@ -2,6 +2,12 @@
 #ifndef __cplusplus
     #include <stdbool.h>
 #endif
+#include <math.h> // Asegúrate de incluir esta cabecera para las funciones sin y cos
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 
 bool invierte;
 
@@ -65,10 +71,21 @@ void llenaColores(void){
       bmi.bmiColors[0].rgbBlue = 0;
       bmi.bmiColors[0].rgbReserved = 0;
 
-    for (int i = 1; i < ncolores; i++) {
-        int red = ((i+10) * 4) % 256;  // Use a wider range of red values
-        int green = (i * 20) % 256;  // Use a wider range of green values
-        int blue = (i * 21) % 256;  // Use a wider range of blue values
+      bmi.bmiColors[255].rgbRed = 0;
+      bmi.bmiColors[255].rgbGreen = 0;
+      bmi.bmiColors[255].rgbBlue = 0;
+      bmi.bmiColors[255].rgbReserved = 0;
+
+    for (int i = 1; i < ncolores-1; i++) {
+
+        //int red = ((i+10) * 4) % ncolores;  
+        //int green = (i * 20) % ncolores;  
+        //int blue = (i * 21) % ncolores;  
+
+        // Generar colores suaves usando funciones seno y coseno
+        int red = (int)(127.5 * (1 + cos(i * 0.1)));
+        int green = (int)(127.5 * (1 + cos(i * 0.1 + 2 * M_PI / 3)));
+        int blue = (int)(127.5 * (1 + cos(i * 0.1 + 4 * M_PI / 3)));
 
         int ca=(i+colini)  % ncolores;
         bmi.bmiColors[ca].rgbRed = red;
