@@ -187,6 +187,10 @@ int threadpool_add(threadpool_t *pool, void (*function)(void *),
         /* Add task to queue */
 
         void * targument= malloc(argument_size);
+        if (targument == NULL) {
+            err = threadpool_lock_failure;
+            break;
+        }
         memcpy(targument, argument, argument_size);
 
         pool->queue[pool->tail].function = function;

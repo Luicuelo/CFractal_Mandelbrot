@@ -14,13 +14,15 @@ bool invierte;
 typedef struct tagBITMAPINFO_E
 {
     BITMAPINFOHEADER bmiHeader;
-    RGBQUAD          bmiColors[ncolores];
+    RGBQUAD          bmiColors[color_count];
 }
 BITMAPINFO_E;
 
 BITMAPINFO_E  bmi;
-BYTE Pixels[hgt][wid];
+BYTE Pixels[window_height][window_width];
 
+int color_offset;
+int temp_rect;
 
 void color(int i,BYTE r,BYTE g, BYTE b)
 {
@@ -37,8 +39,8 @@ void color(int i,BYTE r,BYTE g, BYTE b)
 
         if (x<0) x=0;
         if (y<0) y=0;
-        if (x+w>wid-1) w=wid-1-x;
-        if (y+h>hgt-1) h=hgt-1-y;
+        if (x+w>window_width-1) w=window_width-1-x;
+        if (y+h>window_height-1) h=window_height-1-y;
         for (a=0;a<(h);a++)
             memset (&Pixels[y+a][x],color,w);
 }
@@ -50,8 +52,8 @@ void color(int i,BYTE r,BYTE g, BYTE b)
 
         if (x<0) x=0;
         if (y<0) y=0;
-        if (x+w>wid-1) w=wid-1-x;
-        if (y+h>hgt-1) h=hgt-1-y;
+        if (x+w>window_width-1) w=window_width-1-x;
+        if (y+h>window_height-1) h=window_height-1-y;
 
         for (a=1;a<(h-1);a++){
             memset (&Pixels[y+a][x],color,1);
@@ -76,18 +78,18 @@ void llenaColores(void){
       bmi.bmiColors[255].rgbBlue = 0;
       bmi.bmiColors[255].rgbReserved = 0;
 
-    for (int i = 1; i < ncolores-1; i++) {
+    for (int i = 1; i < color_count-1; i++) {
 
-        //int red = ((i+10) * 4) % ncolores;  
-        //int green = (i * 20) % ncolores;  
-        //int blue = (i * 21) % ncolores;  
+        //int red = ((i+10) * 4) % color_count;  
+        //int green = (i * 20) % color_count;  
+        //int blue = (i * 21) % color_count;  
 
         // Generar colores suaves usando funciones seno y coseno
         int red = (int)(127.5 * (1 + cos(i * 0.1)));
         int green = (int)(127.5 * (1 + cos(i * 0.1 + 2 * M_PI / 3)));
         int blue = (int)(127.5 * (1 + cos(i * 0.1 + 4 * M_PI / 3)));
 
-        int ca=(i+colini)  % ncolores;
+        int ca=(i+color_offset)  % color_count;
         bmi.bmiColors[ca].rgbRed = red;
         bmi.bmiColors[ca].rgbGreen = green;
         bmi.bmiColors[ca].rgbBlue = blue;
@@ -101,15 +103,15 @@ void CreateDIB(HWND hwndParent)
     RECT  rectP;
     GetWindowRect(hwndParent, &rectP);
     bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
-    bmi.bmiHeader.biWidth = wid;          // Width in pixels.
-    bmi.bmiHeader.biHeight = -hgt;        // Height in pixels.
+    bmi.bmiHeader.biWidth = window_width;          // Width in pixels.
+    bmi.bmiHeader.biHeight = -window_height;        // Height in pixels.
     bmi.bmiHeader.biPlanes = 1;           // 1 color plane.
-    bmi.bmiHeader.biBitCount = bits;      // 8 bits per pixel.
+    bmi.bmiHeader.biBitCount = color_depth;      // 8 bits per pixel.
     bmi.bmiHeader.biCompression = 0;      // BI_RGB; // No compression.
     bmi.bmiHeader.biSizeImage = 0;        // Unneeded with no compression.
     bmi.bmiHeader.biXPelsPerMeter = 0;    // Unneeded.
     bmi.bmiHeader.biYPelsPerMeter = 0;    // Unneeded.
-    bmi.bmiHeader.biClrUsed = ncolores;   // # colors in color table
+    bmi.bmiHeader.biClrUsed = color_count;   // # colors in color table
     bmi.bmiHeader.biClrImportant = 0;     // # important colors. 0 means all.
     llenaColores();
 }
@@ -131,7 +133,7 @@ void SaveDib (LPCTSTR lpszFileName, BOOL bOverwriteExisting)
         bmfh.bfSize = sizeof(BITMAPFILEHEADER)
                     + sizeof(BITMAPINFOHEADER)
                     + (bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD))
-                    + wid*hgt;
+                    + window_width*window_height;
         bmfh.bfReserved1 = 0;
         bmfh.bfReserved2 = 0;
         bmfh.bfOffBits = sizeof(BITMAPFILEHEADER)
@@ -146,7 +148,7 @@ void SaveDib (LPCTSTR lpszFileName, BOOL bOverwriteExisting)
         WriteFile(hFile, bmi.bmiColors, bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD),&bytesWritten,NULL);
 
         // Then the pixel data.
-        WriteFile(hFile, Pixels, wid*hgt, &bytesWritten, NULL);
+        WriteFile(hFile, Pixels, window_width*window_height, &bytesWritten, NULL);
         CloseHandle(hFile);
     }
 }
@@ -172,8 +174,8 @@ void DrawDIB(HWND hWnd)
 
     //int success;
     //success =
-	//BitBlt(hDC, 0, 0, wid, hgt, compat_dc, 0, 0,BLACKNESS); // Copy the compatible DC's image onto the window.
-    BitBlt(hDC, 0, 0, wid, hgt, compat_dc, 0, 0,SRCCOPY); 
+	//BitBlt(hDC, 0, 0, window_width, window_height, compat_dc, 0, 0,BLACKNESS); // Copy the compatible DC's image onto the window.
+    BitBlt(hDC, 0, 0, window_width, window_height, compat_dc, 0, 0,SRCCOPY); 
 
     DeleteDC (compat_dc); //Destroy the compatible DC.
     DeleteObject(dib);    ///destruir el Bitmap......
@@ -186,8 +188,8 @@ void DrawDIB(HWND hWnd)
 // void rectangulo(int c,int f,int w,int h,BYTE color)
 //{
 //        int a;
-//        if (f+h>hgt) h=hgt-f;
-//        for (a=(wid-1-c-w);a<(wid-c);a++)
+//        if (f+h>window_height) h=window_height-f;
+//        for (a=(window_width-1-c-w);a<(window_width-c);a++)
 //            memset ((&Pixels[a][0])+f,color,h+1);
 //}
 
@@ -195,6 +197,6 @@ void DrawDIB(HWND hWnd)
 //void setPixel(int x, int y, int color)
 //{
 //    int p;
-//    p=wid-1-x;
+//    p=window_width-1-x;
 //    Pixels[p][y] =color;
 //}

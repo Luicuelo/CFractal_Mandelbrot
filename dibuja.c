@@ -17,29 +17,29 @@
 	#include <stdbool.h>
 #endif
 
-BYTE Memory[hgt][wid];
-int trect;
+BYTE Memory[window_height][window_width];
+int temp_rect;
 
 
 #define menormax(c) (c < 0 ? 0 : (c > 254 ? 254 : c)) // 255 es un valor reservado.
 
 
-double convergencia = 0.2;
+double convergence_threshold = 0.2;
 bool botonapretado;
-int bxd;
-int byd;
-int bxu;
-int byu;
+int mouse_down_x;
+int mouse_down_y;
+int mouse_up_x;
+int mouse_up_y;
 
-int colini;
-int tamPixelglobal;
+int color_offset;
+int global_pixel_size;
 
-double zoom=1.0;
-int maxiter=50;
-double inx;
-double iny;
-double xi;
-double yi;
+double current_zoom = 1.0;
+int max_iterations = 50;
+double complex_step_x;
+double complex_step_y;
+double complex_origin_x;
+double complex_origin_y;
 
 const double TAMINI = 2.9;
 
@@ -49,8 +49,11 @@ char s[255]; // se utiliza en la barra de estado
 
 // int aciertos;
 
+extern HWND main_window_handle;
+extern struct threadpool_t *thread_pool;
+
 void vaciaMemoria(){
-	 memset(Memory, 0, hgt * wid * sizeof(BYTE));
+	 memset(Memory, 0, window_height * window_width * sizeof(BYTE));
 }
 
 BYTE calculaPuntoM(int c, int f)
@@ -62,8 +65,8 @@ BYTE calculaPuntoM(int c, int f)
 	Comp Sz;
 	nc(0, 0, Sz);
 
-	z.x = inx * c + xi;
-	z.y = iny * f + yi;
+	z.x = complex_step_x * c + complex_origin_x;
+	z.y = complex_step_y * f + complex_origin_y;
 	asigna(last, z);
 
 
@@ -82,7 +85,7 @@ BYTE calculaPuntoM(int c, int f)
 	
 	double resta=0;
 	//for (inr = 0; inr < maxiter && (mdr(last)<16); inr++)
-	for(inr = 0; inr < maxiter  && md(Sz) <= 2  && resta<convergencia; inr++)
+	for(inr = 0; inr < max_iterations  && md(Sz) <= 2  && resta < convergence_threshold; inr++)
 	{
 		cuadSuma(last, z, Sz); // definida como una macro
 		asigna(last, Sz);
@@ -91,7 +94,7 @@ BYTE calculaPuntoM(int c, int f)
 		 resta=abs(md(Sz)-md(last));
 	}
 
-	if (inr >= maxiter)
+	if (inr >= max_iterations)
 	{
 		// converge,conjunto
 		return (255);
@@ -172,33 +175,33 @@ void dibuja(void)
 	{
 
 		int ttamPixelActual = tamPixelInicial / (pow(2 ,r));
-		if (ttamPixelActual>=tamPixelglobal) continue;
+		if (ttamPixelActual>=global_pixel_size) continue;
 		//if(soloUnaVez && ttamPixelActual>1)continue;
 	    //Tenemos que evitar calcular el punto que ya esta calculado en el paso anterior. (El central)
 		Punto p;
-		for (i = 0; i*ttamPixelActual < wid - ttamPixelActual; i += 1) //eje x empieza a la izquierda
+		for (i = 0; i*ttamPixelActual < window_width - ttamPixelActual; i += 1) //eje x empieza a la izquierda
 		{				
-			for (j = 0; j*ttamPixelActual < hgt - ttamPixelActual; j += 1) // esto es el eje i, empieza en la esquina superior y va bajando		
+			for (j = 0; j*ttamPixelActual < window_height - ttamPixelActual; j += 1) // esto es el eje i, empieza en la esquina superior y va bajando		
 			{				
 				p.x=i*ttamPixelActual;
 				p.y=j*ttamPixelActual;	
 				p.tam=ttamPixelActual;
-				//zoom=((double)((TAMINI)/(wid))/inx)*100;
+				//zoom=((double)((TAMINI)/(window_width))/inx)*100;
 				//p.zoom=zoom;			
 				if (ttamPixelActual <= 1) {		
 					//este punto ya se calculo en el tamaño anterior.
 					//if (!(i % 2 == 0) && !(j % 2 == 0)) continue;													
-					threadpool_add(hilos, calculaPuntoPixel,&p,sizeof(Punto));
+					threadpool_add(thread_pool, calculaPuntoPixel,&p,sizeof(Punto));
 				}			
 				else {
-					threadpool_add(hilos, calculaPuntoCuadrado,&p,sizeof(Punto));
+					threadpool_add(thread_pool, calculaPuntoCuadrado,&p,sizeof(Punto));
 				}  
 			}
 		}
 
 
-		threadpool_wait_all(hilos);
-		DrawDIB(principal);
+		threadpool_wait_all(thread_pool);
+		DrawDIB(main_window_handle);
 		vaciaCola();
 	
 		
@@ -224,7 +227,7 @@ int pintaSel(HDC hDC)
 			oldpen = (HPEN)SelectObject(hDC, pen1);
 			oldbr = (HBRUSH)SelectObject(hDC, br);
 			SelectObject(hDC, br);
-			rs = Rectangle(hDC, bxd, byd, bxu, byu);
+			rs = Rectangle(hDC, mouse_down_x, mouse_down_y, mouse_up_x, mouse_up_y);
 			SelectObject(hDC, oldpen);
 			DeleteObject(pen1);
 			SelectObject(hDC, oldbr);
@@ -237,22 +240,22 @@ int pintaSel(HDC hDC)
 //---------------------------------------------------------------------------
 
 
-void comienza(void)
+void initializeFractalDrawing(void)
 {
-	bxd = 0;
-	byd = 0;
-	bxu = wid;
-	byu = hgt;
+	mouse_down_x = 0;
+	mouse_down_y = 0;
+	mouse_up_x = window_width;
+	mouse_up_y = window_height;
 
-	xi = -2.2;
-	yi = -1.5;
+	complex_origin_x = -2.2;
+	complex_origin_y = -1.5;
 
-	colini=0;
-	inx = (double)((TAMINI) / (wid));
-	iny = (double)((TAMINI) / (hgt));
+	color_offset=0;
+	complex_step_x = (double)((TAMINI) / (window_width));
+	complex_step_y = (double)((TAMINI) / (window_height));
 
-	tamPixelglobal=wid;
-	sprintf(s, "Plano Complejo: %1.2f/%1.2f:%1.2f/%1.2f ", xi, yi, xi + TAMINI, yi + TAMINI);
+	global_pixel_size=window_width;
+	sprintf(s, "Plano Complejo: %1.2f/%1.2f:%1.2f/%1.2f ", complex_origin_x, complex_origin_y, complex_origin_x + TAMINI, complex_origin_y + TAMINI);
 	UpdateStatusBar(s, 1, 0);
 #ifdef zoomrapido
 	borraPixels2();
@@ -261,8 +264,8 @@ void comienza(void)
 	vaciaMemoria();
 	llenaColores();
 
-	cuadradoR(0 , 0 ,wid,  hgt, 0);
-	DrawDIB(principal);
+	cuadradoR(0 , 0 ,window_width,  window_height, 0);
+	DrawDIB(main_window_handle);
 	vaciaCola();
 	dibuja();
 }
@@ -287,7 +290,7 @@ void expandMemory(int startX, int startY, int newWidth, int newHeight, double sc
 			int posy=(int)(i / scaleY);
 			int posx=(int)(j / scaleX);
             Memory[posy][posx] = oldMemoryToExpand[i*newWidth+j];
-			cuadradoR(posx,posy,tamPixelglobal,tamPixelglobal,calculaColor(Memory[posy][posx] ));
+			cuadradoR(posx,posy,global_pixel_size,global_pixel_size,calculaColor(Memory[posy][posx] ));
         }
     }
 
@@ -296,30 +299,30 @@ void expandMemory(int startX, int startY, int newWidth, int newHeight, double sc
 
 void reescala(void)
 {
-	//xi , yi son las coordenadas del origen en el plano complejo.
-	//inx , iny es la escala del plano complejo. Si multiplicamos la posición del pixel en la imagen nos da el punto correspondiente en el plano complejo.
-	xi += inx * (double)bxd;
-	yi += iny * (double)byd;
+	//complex_origin_x , complex_origin_y son las coordenadas del origen en el plano complejo.
+	//complex_step_x , complex_step_y es la escala del plano complejo. Si multiplicamos la posición del pixel en la imagen nos da el punto correspondiente en el plano complejo.
+	complex_origin_x += complex_step_x * (double)mouse_down_x;
+	complex_origin_y += complex_step_y * (double)mouse_down_y;
 
-	//(bxu - bxd) es el ancho del nuevo rectangulo.
-	//(byu - byd) es el alto del nuevo rectangulo.
-	int nwid=(bxu - bxd+1) ;
-	int nhgt=(byu - byd+1) ;
+	//(mouse_up_x - mouse_down_x) es el ancho del nuevo rectangulo.
+	//(mouse_up_y - mouse_down_y) es el alto del nuevo rectangulo.
+	int nwid=(mouse_up_x - mouse_down_x+1) ;
+	int nhgt=(mouse_up_y - mouse_down_y+1) ;
 
-	double factorx=(double)nwid / (double)(wid);
-	double factory=(double)nhgt / (double)(hgt);
+	double factorx=(double)nwid / (double)(window_width);
+	double factory=(double)nhgt / (double)(window_height);
 
-	tamPixelglobal=(int)(1/factorx)+1;
-	expandMemory (bxd,byd, nwid ,nhgt,factorx, factory);
-	DrawDIB(principal);
-	inx *= factorx;
-	iny *= factory;
+	global_pixel_size=(int)(1/factorx)+1;
+	expandMemory (mouse_down_x,mouse_down_y, nwid ,nhgt,factorx, factory);
+	DrawDIB(main_window_handle);
+	complex_step_x *= factorx;
+	complex_step_y *= factory;
 
-	// Ajustar maxiter en función del nivel de zoom, con un límite superior
-	zoom = 1.0 / ((factorx + factory) / 2.0);
-	maxiter = 150 + log2(log2(zoom)) * 50;
-	if (maxiter > 300) {
-		maxiter = 300; // Límite superior para maxiter
+	// Ajustar max_iterations en función del nivel de zoom, con un límite superior
+	current_zoom = 1.0 / ((factorx + factory) / 2.0);
+	max_iterations = 150 + log2(log2(current_zoom)) * 50;
+	if (max_iterations > 300) {
+		max_iterations = 300; // Límite superior para max_iterations
 	}
 }
 //---------------------------------------------------------------------------
@@ -335,24 +338,24 @@ void mueve(int x, int y, HWND hwnd)
 	{
 		int anchoR;
 		int altoR;
-		bxu = x;
-		byu = y;
-		anchoR = (bxu - bxd);
-		altoR = (byu - byd);
-		((anchoR) < (altoR)) ? (bxu = bxd + altoR) : (byu = byd + anchoR);
+		mouse_up_x = x;
+		mouse_up_y = y;
+		anchoR = (mouse_up_x - mouse_down_x);
+		altoR = (mouse_up_y - mouse_down_y);
+		((anchoR) < (altoR)) ? (mouse_up_x = mouse_down_x + altoR) : (mouse_up_y = mouse_down_y + anchoR);
 
 		DrawDIB(hwnd);
 		hDC = GetDC(hwnd);
 		pintaSel(hDC);
 
-		wsprintf(s, " Posicion: %d/%d : %d/%d", bxd, byd, bxu, byu);
+		wsprintf(s, " Posicion: %d/%d : %d/%d", mouse_down_x, mouse_down_y, mouse_up_x, mouse_up_y);
 		UpdateStatusBar(s, 0, 0);
 
-		txi = (xi + inx * (double)bxd);
-		tyi = (yi + iny * (double)byd);
+		txi = (complex_origin_x + complex_step_x * (double)mouse_down_x);
+		tyi = (complex_origin_y + complex_step_y * (double)mouse_down_y);
 
-		txf = (xi + inx * (double)bxu);
-		tyf = (yi + iny * (double)byu);
+		txf = (complex_origin_x + complex_step_x * ((double)window_width) + complex_origin_x) * 100.0;
+		tyf = (complex_origin_y + complex_step_y * (double)mouse_up_y);
 
 		sprintf(s, "Plano Complejo: %1.2f/%1.2f:%1.2f/%1.2f ", txi, tyi, txf, tyf);
 		UpdateStatusBar(s, 1, 0);
@@ -364,11 +367,11 @@ void mueve(int x, int y, HWND hwnd)
 char *cadenaSave(void)
 {
 
-	double txi = (xi) * 100.0;
-	double tyi = (yi) * 100.0;
+	double txi = (complex_origin_x) * 100.0;
+	double tyi = (complex_origin_y) * 100.0;
 
-	double txf = (inx * ((double)(wid)) + xi) * 100.0;
-	double tyf = (iny * ((double)(hgt)) + yi) * 100.0;
+	double txf = (complex_step_x * ((double)(window_width)) + complex_origin_x) * 100.0;
+	double tyf = (complex_step_y * ((double)(window_height)) + complex_origin_y) * 100.0;
 
 	sprintf(s, "Fractal%2.0f_%2.0f_%2.0f_%2.0f.bmp ", txi, tyi, txf, tyf);
 	return (s);
@@ -388,8 +391,8 @@ void abajo(int x, int y)
 {
 	if (imagencargada)
 	{
-		bxd = x;
-		byd = y;
+		mouse_down_x = x;
+		mouse_down_y = y;
 		botonapretado = TRUE;
 	}
 }
@@ -398,14 +401,14 @@ void abajo(int x, int y)
 bool rotCol = false;
 void eRotCol(void)
 {
-	while ((rotCol) && (principal != 0))
+	while ((rotCol) && (main_window_handle != 0))
 	{
-		colini = colini + 1;
-		if (colini>254) colini=0;
+		color_offset = color_offset + 1;
+		if (color_offset>254) color_offset=0;
 		llenaColores();
-		if (principal != 0)
-			DrawDIB(principal);
-		sprintf(s, "Color: %d ", colini);
+		if (main_window_handle != 0)
+			DrawDIB(main_window_handle);
+		sprintf(s, "Color: %d ", color_offset);
 		UpdateStatusBar(s, 0, 0);
 		Sleep(50);
 		vaciaCola();
@@ -423,8 +426,8 @@ void fractalTecla(BYTE tecla)
 	{
 		invierte = !invierte;
 		llenaColores();
-		if (principal != 0)
-			DrawDIB(principal);
+		if (main_window_handle != 0)
+			DrawDIB(main_window_handle);
 	}
 }
 
