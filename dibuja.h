@@ -17,7 +17,7 @@
 #define ESCAPE_RADIUS_SQUARED 4.0  // 2^2 = 4
 #define menormax(c) (c < 0 ? 0 : (c > 254 ? 254 : c)) // 255 es un valor reservado.
 
-bool invert;
+bool invertColors;
 typedef struct _point {
   int x;
   int y;

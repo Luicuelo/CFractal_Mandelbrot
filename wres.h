@@ -7,6 +7,6 @@
 #define	dialogo	101
 #define	BCerrar	105
 #define	ImenuP	1000
-//#define IDB_BITMAP1                     102
-//#define Picture                         -1
+#define IDB_BITMAP1                     102
+#define Picture                         -1
 

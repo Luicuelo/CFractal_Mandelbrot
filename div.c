@@ -11,7 +11,7 @@
 #endif
 
 
-bool invert;
+bool invertColors;
 
 typedef struct tagBITMAPINFO_E
 {
@@ -88,6 +88,12 @@ void fillColors(void) {
         int red = (int)(127.5 * (1 + cos(i * 0.1)));
         int green = (int)(127.5 * (1 + cos(i * 0.1 + 2 * M_PI / 3)));
         int blue = (int)(127.5 * (1 + cos(i * 0.1 + 4 * M_PI / 3)));
+
+        if (invertColors){
+            red=255-red;
+            green=255-green;
+            blue=255-blue;
+        }
 
         int ca = (i + color_offset) % COLOR_COUNT;
         bmi.bmiColors[ca].rgbRed = red;

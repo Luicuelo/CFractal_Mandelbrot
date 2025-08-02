@@ -84,7 +84,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     ShowWindow(hwnd, nFunsterStil);
     UpdateWindow(hwnd);
     createDIB(hwnd);
-    thread_pool = threadpool_create(10, 200, 0);
+    thread_pool = threadpool_create(DEFAULT_THREAD_COUNT, DEFAULT_QUEUE_SIZE,0);
     onInitializeFractal(); // Cambiado de initializeFractalDrawing
 
     /* Run the message loop. It will run until GetMessage() returns 0 */
@@ -207,6 +207,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
             main_window_handle = 0;
         case WM_QUIT:
             main_window_handle = 0;
+        PostQuitMessage(0);            
         break;
         case WM_CREATE:
         break;

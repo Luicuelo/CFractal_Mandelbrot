@@ -229,6 +229,7 @@ void onInitializeFractal(void) {
     complex_origin_y = -1.5;
 
     color_offset = 0;
+	invertColors=0;
     isColorRotationActive = false; // Reset color rotation
     absolute_zoom = 1.0; // Reset absolute zoom
     max_iterations = DEFAULT_MAXITERATIONS; // Reset max iterations to default
@@ -436,13 +437,13 @@ void animateColorRotation(void)
 	}
 }
 
-void onFractalKeyPress(BYTE tecla) {
-    if (tecla == 't' || tecla == 'T') {
+void onFractalKeyPress(BYTE key) {
+    if (key == 't' || key == 'T') {
         isColorRotationActive = !isColorRotationActive;
         animateColorRotation();
     }
-    if (tecla == 'i' || tecla == 'I') {
-        invert = !invert;
+    if (key == 'i' || key == 'I') {
+        invertColors = !invertColors;
         fillColors();
         if (main_window_handle != 0)
             drawFractal(main_window_handle);
