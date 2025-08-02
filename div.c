@@ -16,7 +16,7 @@ bool invertColors;
 typedef struct tagBITMAPINFO_E
 {
     BITMAPINFOHEADER bmiHeader;
-    RGBQUAD          bmiColors[COLOR_COUNT];
+    RGBQUAD          bmiColors[COLOR_COUNT+1];
 }
 BITMAPINFO_E;
 
@@ -79,23 +79,30 @@ void fillColors(void) {
     bmi.bmiColors[0].rgbBlue = 0;
     bmi.bmiColors[0].rgbReserved = 0;
 
-    bmi.bmiColors[255].rgbRed = 0;
-    bmi.bmiColors[255].rgbGreen = 0;
-    bmi.bmiColors[255].rgbBlue = 0;
-    bmi.bmiColors[255].rgbReserved = 0;
+    bmi.bmiColors[COLOR_COUNT].rgbRed = 0;
+    bmi.bmiColors[COLOR_COUNT].rgbGreen = 0;
+    bmi.bmiColors[COLOR_COUNT].rgbBlue = 0;
+    bmi.bmiColors[COLOR_COUNT].rgbReserved = 0;
 
-    for (int i = 1; i < COLOR_COUNT - 1; i++) {
-        int red = (int)(127.5 * (1 + cos(i * 0.1)));
-        int green = (int)(127.5 * (1 + cos(i * 0.1 + 2 * M_PI / 3)));
-        int blue = (int)(127.5 * (1 + cos(i * 0.1 + 4 * M_PI / 3)));
+    for (int i = 0; i < (COLOR_COUNT - 2); i++) {
+
+        int red =(2*i);
+        int green = (int)(127.5 * (1 + cos(i * 0.1)));
+        //int green = (int)(127.5 * (1 + cos(i * 0.1 + 2 * M_PI / 3)));
+        int blue= (i/2+150);
+        //int blue = (int)(127.5 * (1 + cos(i * 0.1 + 4 * M_PI / 3)));
+
+        red= (red%(COLOR_COUNT-1))+1;
+        green= (green%(COLOR_COUNT-1))+1;
+        blue = (blue%(COLOR_COUNT-1))+1;
 
         if (invertColors){
-            red=255-red;
-            green=255-green;
-            blue=255-blue;
+            red=COLOR_COUNT-red;
+            green=COLOR_COUNT-green;
+            blue=COLOR_COUNT-blue;
         }
 
-        int ca = (i + color_offset) % COLOR_COUNT;
+        int ca = ((i + color_offset) % (COLOR_COUNT-1))+1;
         bmi.bmiColors[ca].rgbRed = red;
         bmi.bmiColors[ca].rgbGreen = green;
         bmi.bmiColors[ca].rgbBlue = blue;

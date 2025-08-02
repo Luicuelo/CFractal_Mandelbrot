@@ -132,9 +132,11 @@ int calculateColor(BYTE maxiters){
 	if (maxiters==255) {
 		return 255; // Black for points in the set
 	}
+
 	// Scale color based on max_iterations for better distribution
-	int scaled_color = (int)((double)maxiters * 254.0 / (double)max_iterations);
+	int scaled_color = (int)((double)maxiters * 254.0 / (double)max_iterations);	
 	return menormax(254 - scaled_color);
+	
 }
 
 
@@ -235,8 +237,8 @@ void onInitializeFractal(void) {
     max_iterations = DEFAULT_MAXITERATIONS; // Reset max iterations to default
 
     // Calculate step size for converting pixels to complex coordinates
-    complex_step_x = (double)((INITIALFRACTALSIZE) / (WINDOW_WIDTH));
-    complex_step_y = (double)((INITIALFRACTALSIZE) / (WINDOW_HEIGHT));
+    complex_step_x = ((INITIALFRACTALSIZE) / (double)(WINDOW_WIDTH));
+    complex_step_y = ((INITIALFRACTALSIZE) / (double)(WINDOW_HEIGHT));
 
     global_pixel_size = WINDOW_WIDTH;
     sprintf(s, "Complex Plane: %1.2f/%1.2f:%1.2f/%1.2f ", complex_origin_x, complex_origin_y, complex_origin_x + INITIALFRACTALSIZE, complex_origin_y + INITIALFRACTALSIZE);
@@ -283,6 +285,7 @@ void expandMemory(int startX, int startY, int newWidth, int newHeight, double sc
     onClearMemory();
 
     // Scale up the copied region to fill the entire screen
+	
     for (int i = 0; i < newHeight; i++) {
         for (int j = 0; j < newWidth; j++) {
             int posy = (int)(i / scaleY);
@@ -295,6 +298,19 @@ void expandMemory(int startX, int startY, int newWidth, int newHeight, double sc
             }
         }
     }
+   /*
+	for (int y = 0; y < WINDOW_HEIGHT; y += global_pixel_size) {
+		for (int x = 0; x < WINDOW_WIDTH; x += global_pixel_size) {
+			int source_y = (int)(y * scaleY);
+			int source_x = (int)(x * scaleX);
+			
+			if (source_y < newHeight && source_x < newWidth) {
+				Memory[y][x] = oldMemoryToExpand[source_y*newWidth + source_x];
+				drawSquare(x, y, global_pixel_size, global_pixel_size, 
+						calculateColor(Memory[y][x]));
+			}
+		}
+	}*/
 
     free(oldMemoryToExpand);
 }
