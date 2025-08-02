@@ -30,19 +30,12 @@
 #define _THREADPOOL_H_
 
 #include "source/tinycthread.h"
+#include <string.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**
- * @file threadpool.h
- * @brief Threadpool Header File
- */
-
- /**
- * Increase this constants at your own risk
- * Large values might slow down your system
- */
 #define MAX_THREADS 64
 #define MAX_QUEUE 65536
 

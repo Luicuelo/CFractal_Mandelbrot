@@ -57,8 +57,8 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
 
     r.left=0;
     r.top=0;
-    r.right=window_width+1;
-    r.bottom=window_height+1;
+    r.right=WINDOW_WIDTH+1;
+    r.bottom=WINDOW_HEIGHT+1;
     AdjustWindowRect(&r,WS_OVERLAPPEDWINDOW,TRUE);
 
 
@@ -80,10 +80,10 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     /* Make the window visible on the screen */
 
     main_window_handle = hwnd;
-    CreateSBar(hwnd, "Iniciado", 2);
+    createSBar(hwnd, "Iniciado", 2);
     ShowWindow(hwnd, nFunsterStil);
     UpdateWindow(hwnd);
-    CreateDIB(hwnd);
+    createDIB(hwnd);
     thread_pool = threadpool_create(10, 200, 0);
     onInitializeFractal(); // Cambiado de initializeFractalDrawing
 
@@ -212,7 +212,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         break;
         case WM_SIZE:
             SendMessage(hWndStatusbar,message,wParam,lParam);
-            InitializeStatusBar(hWndStatusbar,2);
+            initializeStatusBar(hWndStatusbar,2);
             break;
         break;
         case WM_COMMAND:
@@ -253,8 +253,8 @@ void reescala(void)
 {
     double factorx; // Declarar factorx antes de su uso
     double factory; // Declarar factory antes de su uso
-    factorx = (double)nwid / (double)(window_width);
-    factory = (double)nhgt / (double)(window_height);
+    factorx = (double)nwid / (double)(WINDOW_WITH);
+    factory = (double)nhgt / (double)(WINDOW_HEIGHT);
     global_pixel_size = (int)(1 / factorx) + 1;
 }
 */

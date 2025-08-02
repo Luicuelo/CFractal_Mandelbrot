@@ -1,10 +1,13 @@
 #include "constantes.h"
 #include <windows.h>
 #include <commctrl.h>
+#include <string.h>
+
 #define IDM_STATUSBAR 3000
 
+extern HWND hWndStatusbar;
 
-extern HWND  hWndStatusbar;
-BOOL CreateSBar(HWND hwndParent,char *initialText,int nrOfParts);
-void InitializeStatusBar(HWND hwndParent,int nrOfParts);
-void UpdateStatusBar(LPSTR lpszStatusString, WORD partNumber, WORD displayFlags);
+BOOL createSBar(HWND hwndParent, char *initialText, int nrOfParts);
+void initializeStatusBar(HWND hwndParent, int nrOfParts);
+void updateStatusBar(LPSTR lpszStatusString, WORD partNumber, WORD displayFlags);
+

@@ -1,10 +1,10 @@
-#define window_width 1000
-#define window_height 1000
-#define color_depth 8
-#define color_count 256
-//#define colMandel 20
+#define WINDOW_WIDTH 1000
+#define WINDOW_HEIGHT 1000
+#define COLOR_DEPTH 8
+#define COLOR_COUNT 256
+#define DEFAULT_MAXITERATIONS 50
+//#define COLMANDEL 20
 
-#define colMandel 0
 
 /*
 #ifndef _bool

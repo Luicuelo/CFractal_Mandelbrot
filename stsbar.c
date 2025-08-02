@@ -13,7 +13,7 @@ extern HWND main_window_handle;
 HWND hWndStatusbar;
 
 // Función para crear la barra de estado.
-BOOL CreateSBar(HWND hwndParent, char *initialText, int numberOfParts) {
+BOOL createSBar(HWND hwndParent, char *initialText, int nrOfParts) {
     RECT parentRect;
     RECT statusBarRect;
     int parentWidth;
@@ -34,8 +34,8 @@ BOOL CreateSBar(HWND hwndParent, char *initialText, int numberOfParts) {
     SetWindowPos(hwndParent, 0, 0, 0, parentWidth, parentHeight, flags);
 
     if (hWndStatusbar) {
-        InitializeStatusBar(hwndParent, numberOfParts);
-        UpdateStatusBar(initialText, 0, 0);
+        initializeStatusBar(hwndParent, nrOfParts);
+        updateStatusBar(initialText, 0, 0);
         if (main_window_handle != 0)
             drawFractal(main_window_handle);
         return TRUE;
@@ -45,12 +45,12 @@ BOOL CreateSBar(HWND hwndParent, char *initialText, int numberOfParts) {
 }
 
 // Función para inicializar la barra de estado con múltiples partes.
-void InitializeStatusBar(HWND hwndParent, int numberOfParts) {
+void initializeStatusBar(HWND hwndParent, int nrOfParts) {
     int partWidths[40]; // Array para definir el ancho de las partes.
     HDC deviceContext;
 
     // Validate input parameters
-    if (hwndParent == NULL || numberOfParts <= 0 || numberOfParts > 40) {
+    if (hwndParent == NULL || nrOfParts <= 0 || nrOfParts > 40) {
         return;
     }
 
@@ -64,8 +64,8 @@ void InitializeStatusBar(HWND hwndParent, int numberOfParts) {
     memset(partWidths, 0, sizeof(partWidths));
 
     // Configurar los anchos de las partes de la barra de estado.
-    if (numberOfParts >= 1) partWidths[0] = window_width / 2;
-    if (numberOfParts >= 2) partWidths[1] = window_width;
+    if (nrOfParts >= 1) partWidths[0] = WINDOW_WIDTH / 2;
+    if (nrOfParts >= 2) partWidths[1] = WINDOW_WIDTH;
 
     // Liberar el contexto del dispositivo.
     ReleaseDC(hwndParent, deviceContext);
@@ -74,13 +74,13 @@ void InitializeStatusBar(HWND hwndParent, int numberOfParts) {
     if (hWndStatusbar != NULL) {
         SendMessage(hWndStatusbar,
                     SB_SETPARTS,
-                    numberOfParts,
+                    nrOfParts,
                     (LPARAM)(LPINT)partWidths);
     }
 }
 
 // Función para actualizar el texto de la barra de estado.
-void UpdateStatusBar(LPSTR statusText, WORD partNumber, WORD displayFlags) {
+void updateStatusBar(LPSTR statusText, WORD partNumber, WORD displayFlags) {
     SendMessage(hWndStatusbar,
                 SB_SETTEXT,
                 partNumber | displayFlags,

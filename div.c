@@ -2,27 +2,36 @@
 #ifndef __cplusplus
     #include <stdbool.h>
 #endif
-#include <math.h> // Asegúrate de incluir esta cabecera para las funciones sin y cos
+#include <math.h>
+#include <stdio.h>
+#include "stsbar.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 
-bool invierte;
+bool invert;
 
 typedef struct tagBITMAPINFO_E
 {
     BITMAPINFOHEADER bmiHeader;
-    RGBQUAD          bmiColors[color_count];
+    RGBQUAD          bmiColors[COLOR_COUNT];
 }
 BITMAPINFO_E;
 
 BITMAPINFO_E  bmi;
-BYTE Pixels[window_height][window_width];
+BYTE Pixels[WINDOW_HEIGHT][WINDOW_WIDTH];
 
 int color_offset;
 int temp_rect;
+
+// Set a single pixel with the specified color
+void drawPixel(int x, int y, BYTE color) {
+    if (x >= 0 && x < WINDOW_WIDTH && y >= 0 && y < WINDOW_HEIGHT) {
+        Pixels[y][x] = color;
+    }
+}
 
 void color(int i,BYTE r,BYTE g, BYTE b)
 {
@@ -38,8 +47,8 @@ void drawSquare(int x, int y, int w, int h, BYTE color) {
 
     if (x < 0) x = 0;
     if (y < 0) y = 0;
-    if (x + w > window_width - 1) w = window_width - 1 - x;
-    if (y + h > window_height - 1) h = window_height - 1 - y;
+    if (x + w > WINDOW_WIDTH - 1) w = WINDOW_WIDTH - 1 - x;
+    if (y + h > WINDOW_HEIGHT - 1) h = WINDOW_HEIGHT - 1 - y;
     for (a = 0; a < h; a++)
         memset(&Pixels[y + a][x], color, w);
 }
@@ -50,8 +59,8 @@ void drawBorder(int x, int y, int w, int h, BYTE color) {
 
     if (x < 0) x = 0;
     if (y < 0) y = 0;
-    if (x + w > window_width - 1) w = window_width - 1 - x;
-    if (y + h > window_height - 1) h = window_height - 1 - y;
+    if (x + w > WINDOW_WIDTH - 1) w = WINDOW_WIDTH - 1 - x;
+    if (y + h > WINDOW_HEIGHT - 1) h = WINDOW_HEIGHT - 1 - y;
 
     for (a = 1; a < (h - 1); a++) {
         memset(&Pixels[y + a][x], color, 1);
@@ -75,12 +84,12 @@ void fillColors(void) {
     bmi.bmiColors[255].rgbBlue = 0;
     bmi.bmiColors[255].rgbReserved = 0;
 
-    for (int i = 1; i < color_count - 1; i++) {
+    for (int i = 1; i < COLOR_COUNT - 1; i++) {
         int red = (int)(127.5 * (1 + cos(i * 0.1)));
         int green = (int)(127.5 * (1 + cos(i * 0.1 + 2 * M_PI / 3)));
         int blue = (int)(127.5 * (1 + cos(i * 0.1 + 4 * M_PI / 3)));
 
-        int ca = (i + color_offset) % color_count;
+        int ca = (i + color_offset) % COLOR_COUNT;
         bmi.bmiColors[ca].rgbRed = red;
         bmi.bmiColors[ca].rgbGreen = green;
         bmi.bmiColors[ca].rgbBlue = blue;
@@ -92,7 +101,7 @@ void fillColors(void) {
 void fillColorsAlternate(void) {
     int i;
 
-    for (i = 0; i < color_count; i++) {
+    for (i = 0; i < COLOR_COUNT; i++) {
         bmi.bmiColors[i].rgbRed = i % 256;
         bmi.bmiColors[i].rgbGreen = (i * 2) % 256;
         bmi.bmiColors[i].rgbBlue = (i * 3) % 256;
@@ -100,20 +109,20 @@ void fillColorsAlternate(void) {
     }
 }
 
-void CreateDIB(HWND hwndParent)
+void createDIB(HWND hwndParent)
 {
     RECT  rectP;
     GetWindowRect(hwndParent, &rectP);
     bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
-    bmi.bmiHeader.biWidth = window_width;          // Width in pixels.
-    bmi.bmiHeader.biHeight = -window_height;        // Height in pixels.
+    bmi.bmiHeader.biWidth = WINDOW_WIDTH;          // Width in pixels.
+    bmi.bmiHeader.biHeight = -WINDOW_HEIGHT;        // Height in pixels.
     bmi.bmiHeader.biPlanes = 1;           // 1 color plane.
-    bmi.bmiHeader.biBitCount = color_depth;      // 8 bits per pixel.
+    bmi.bmiHeader.biBitCount = COLOR_DEPTH;      // 8 bits per pixel.
     bmi.bmiHeader.biCompression = 0;      // BI_RGB; // No compression.
     bmi.bmiHeader.biSizeImage = 0;        // Unneeded with no compression.
     bmi.bmiHeader.biXPelsPerMeter = 0;    // Unneeded.
     bmi.bmiHeader.biYPelsPerMeter = 0;    // Unneeded.
-    bmi.bmiHeader.biClrUsed = color_count;   // # colors in color table
+    bmi.bmiHeader.biClrUsed = COLOR_COUNT;   // # colors in color table
     bmi.bmiHeader.biClrImportant = 0;     // # important colors. 0 means all.
     fillColors();
 }
@@ -129,7 +138,7 @@ void saveFractal(LPCTSTR lpszFileName, BOOL bOverwriteExisting) {
     if (hFile != INVALID_HANDLE_VALUE) {
         BITMAPFILEHEADER bmfh;
         bmfh.bfType = MAKEWORD('B', 'M');
-        bmfh.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + (bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD)) + window_width * window_height;
+        bmfh.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + (bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD)) + WINDOW_WIDTH * WINDOW_HEIGHT;
         bmfh.bfReserved1 = 0;
         bmfh.bfReserved2 = 0;
         bmfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + (bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD));
@@ -142,7 +151,7 @@ void saveFractal(LPCTSTR lpszFileName, BOOL bOverwriteExisting) {
             writeResult = WriteFile(hFile, bmi.bmiColors, bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD), &bytesWritten, NULL);
         }
         if (writeResult && bytesWritten == (bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD))) {
-            WriteFile(hFile, Pixels, window_width * window_height, &bytesWritten, NULL);
+            WriteFile(hFile, Pixels, WINDOW_WIDTH * WINDOW_HEIGHT, &bytesWritten, NULL);
         }
         CloseHandle(hFile);
     }
@@ -161,7 +170,7 @@ void drawFractal(HWND hWnd) {
                          (BITMAPINFO*)&bmi, DIB_RGB_COLORS);
     SelectObject(compat_dc, dib); // Select the DIB into the compatible DC.
 
-    BitBlt(hDC, 0, 0, window_width, window_height, compat_dc, 0, 0, SRCCOPY);
+    BitBlt(hDC, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, compat_dc, 0, 0, SRCCOPY);
 
     DeleteDC(compat_dc); // Destroy the compatible DC.
     DeleteObject(dib);   // Destroy the Bitmap.
@@ -169,20 +178,3 @@ void drawFractal(HWND hWnd) {
 }
 
 
-
-// Implementadas como Macro para mayor rapidez.
-// void rectangulo(int c,int f,int w,int h,BYTE color)
-//{
-//        int a;
-//        if (f+h>window_height) h=window_height-f;
-//        for (a=(window_width-1-c-w);a<(window_width-c);a++)
-//            memset ((&Pixels[a][0])+f,color,h+1);
-//}
-
-//
-//void setPixel(int x, int y, int color)
-//{
-//    int p;
-//    p=window_width-1-x;
-//    Pixels[p][y] =color;
-//}
