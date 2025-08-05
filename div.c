@@ -16,7 +16,7 @@ bool invertColors;
 typedef struct tagBITMAPINFO_E
 {
     BITMAPINFOHEADER bmiHeader;
-    RGBQUAD          bmiColors[COLOR_COUNT+1];
+    RGBQUAD          bmiColors[COLOR_COUNT];
 }
 BITMAPINFO_E;
 
@@ -33,14 +33,6 @@ void drawPixel(int x, int y, BYTE color) {
     }
 }
 
-void color(int i,BYTE r,BYTE g, BYTE b)
-{
-    bmi.bmiColors[i].rgbRed = r;
-    bmi.bmiColors[i].rgbGreen = g;
-    bmi.bmiColors[i].rgbBlue = b;
-    bmi.bmiColors[i].rgbReserved = 0;
-}
-
 // Draw a filled square/rectangle with the specified color
 void drawSquare(int x, int y, int w, int h, BYTE color) {
     int a;
@@ -51,6 +43,14 @@ void drawSquare(int x, int y, int w, int h, BYTE color) {
     if (y + h > WINDOW_HEIGHT - 1) h = WINDOW_HEIGHT - 1 - y;
     for (a = 0; a < h; a++)
         memset(&Pixels[y + a][x], color, w);
+}
+
+void color(int i,BYTE r,BYTE g, BYTE b)
+{
+    bmi.bmiColors[i].rgbRed = r;
+    bmi.bmiColors[i].rgbGreen = g;
+    bmi.bmiColors[i].rgbBlue = b;
+    bmi.bmiColors[i].rgbReserved = 0;
 }
 
 // Draw a border/outline rectangle with the specified color
@@ -74,51 +74,44 @@ void drawBorder(int x, int y, int w, int h, BYTE color) {
 void fillColors(void) {
     int i;
 
-    bmi.bmiColors[0].rgbRed = 0;
-    bmi.bmiColors[0].rgbGreen = 0;
-    bmi.bmiColors[0].rgbBlue = 0;
+    bmi.bmiColors[0].rgbRed = 255;
+    bmi.bmiColors[0].rgbGreen = 255;
+    bmi.bmiColors[0].rgbBlue = 255;
     bmi.bmiColors[0].rgbReserved = 0;
 
-    bmi.bmiColors[COLOR_COUNT].rgbRed = 0;
-    bmi.bmiColors[COLOR_COUNT].rgbGreen = 0;
-    bmi.bmiColors[COLOR_COUNT].rgbBlue = 0;
-    bmi.bmiColors[COLOR_COUNT].rgbReserved = 0;
+    //Mandelbrot set Color
+    bmi.bmiColors[COLOR_COUNT-1].rgbRed = 0;
+    bmi.bmiColors[COLOR_COUNT-1].rgbGreen = 0;
+    bmi.bmiColors[COLOR_COUNT-1].rgbBlue = 0;
+    bmi.bmiColors[COLOR_COUNT-1].rgbReserved = 0;
 
+    
     for (int i = 0; i < (COLOR_COUNT - 2); i++) {
 
-        int red =(2*i);
-        int green = (int)(127.5 * (1 + cos(i * 0.1)));
-        //int green = (int)(127.5 * (1 + cos(i * 0.1 + 2 * M_PI / 3)));
-        int blue= (i/2+150);
-        //int blue = (int)(127.5 * (1 + cos(i * 0.1 + 4 * M_PI / 3)));
+        int green = i % 256;;
+        int blue = (i * 2) % 256;
+        int red= (i /2) % 256;
+   
+     //int green = (int)(127.5 * (1 + cos(i * 0.1 + 2 * M_PI / 3)));
+   
+        red= (red%256);
+        green= (green%256);
+        blue = (blue%256);
 
-        red= (red%(COLOR_COUNT-1))+1;
-        green= (green%(COLOR_COUNT-1))+1;
-        blue = (blue%(COLOR_COUNT-1))+1;
-
-        if (invertColors){
-            red=COLOR_COUNT-red;
-            green=COLOR_COUNT-green;
-            blue=COLOR_COUNT-blue;
+        if (!invertColors){
+            red=255-red;
+            green=255-green;
+            blue=255-blue;
         }
 
-        int ca = ((i + color_offset) % (COLOR_COUNT-1))+1;
+        int ca = ((i + color_offset) % (COLOR_COUNT-2))+1;
+        //char debug_msg[50];
+        //sprintf(debug_msg, "i=%d, ca=%d\n", i, ca);
+        //OutputDebugString(debug_msg);
         bmi.bmiColors[ca].rgbRed = red;
         bmi.bmiColors[ca].rgbGreen = green;
         bmi.bmiColors[ca].rgbBlue = blue;
         bmi.bmiColors[ca].rgbReserved = 0;
-    }
-}
-
-// Fill the color palette with alternate color scheme
-void fillColorsAlternate(void) {
-    int i;
-
-    for (i = 0; i < COLOR_COUNT; i++) {
-        bmi.bmiColors[i].rgbRed = i % 256;
-        bmi.bmiColors[i].rgbGreen = (i * 2) % 256;
-        bmi.bmiColors[i].rgbBlue = (i * 3) % 256;
-        bmi.bmiColors[i].rgbReserved = 0;
     }
 }
 

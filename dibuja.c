@@ -51,7 +51,7 @@ void onClearMemory() {
 // Returns 255 if in set, otherwise returns iteration count when it diverged
 BYTE calculateMandelbrotPoint(int column, int row)
 {
-
+	
 
 	int iterations;
 	Comp c;
@@ -87,60 +87,73 @@ BYTE calculateMandelbrotPoint(int column, int row)
 	}
 #endif
 
-	if (iterations >= max_iterations)
-	{
-		// Point is in the Mandelbrot set
-		return (255);
-	}
-	else
-	{
-		// Point diverged
-		return (iterations);
-	}
+	if(iterations==0) return 1;
+	// Point is in the Mandelbrot set
+	if (iterations >= max_iterations) return (MANDELBROTPOINT_VALUE);
+	// Point diverged
+	return (iterations);
+	
 }
+
+#ifdef useUniformBlockOptimization
+// Fill a square/rectangle in Memory with the specified value (equivalent to drawSquare for Memory)
+void fillMemorySquare(int x, int y, int w, int h, BYTE value) {
+    int a;
+
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x + w > WINDOW_WIDTH - 1) w = WINDOW_WIDTH - 1 - x;
+    if (y + h > WINDOW_HEIGHT - 1) h = WINDOW_HEIGHT - 1 - y;
+    for (a = 0; a < h; a++)
+        memset(&Memory[y + a][x], value, w);
+}
+
+// Check if 4 corners are uniform or close to their mean value
+bool areCornersUniformAndCalculated(int a, int b, int c, int d) {
+
+	return (a > 0 && a == b && b == c && c == d);
+}
+#endif
 
 // Calculate Mandelbrot value and draw a square block of pixels
 void calculateAndDraw(Point *p){
 
-	BYTE maxiters;
+	BYTE iters;
 	BYTE color;
 	int xc=p->x;
 	int yc=p->y;
+	int tam=p->tam;
 
 	// Check if point already calculated
-	maxiters=Memory[yc][xc];
-	if(maxiters>0)
-	{
-			// Already calculated
-	}
-	else {
+	iters=Memory[yc][xc];	
+	//!=0 Already calculated	
+	if(iters==0) {
 			// Calculate Mandelbrot value and store in memory
-			maxiters=calculateMandelbrotPoint(xc, yc);
-			Memory[yc][xc]=maxiters;
+			iters=calculateMandelbrotPoint(xc, yc);
+			Memory[yc][xc]=iters;
 	}
-	
-	color=calculateColor(maxiters);
+	color=calculateColor(iters);
+
+#ifdef useUniformBlockOptimization
+			// For blocks > 1, check if this is bottom-right corner of a uniform block
+			if (tam > 1 && xc >= tam && yc >= tam && p->optimizeArea) {
+				// Check if the 3 previously calculated corners are equal to current
+				BYTE topLeft = Memory[yc-tam][xc-tam];
+				BYTE topRight = Memory[yc-tam][xc];
+				BYTE bottomLeft = Memory[yc][xc-tam];
+
+				if (areCornersUniformAndCalculated(topLeft, topRight, bottomLeft, iters)) {
+					// Fill Memory with the mean value using optimized function
+					fillMemorySquare(xc-tam, yc-tam, tam, tam, iters);    
+					//drawSquare(xc-tam,yc-tam,tam,tam,0 );	        
+				}
+			}
+#endif
+
 	if (p->tam > 1) {
-			drawSquare(p->x , p->y , p->tam,  p->tam,color );	
-	} else 	drawPixel(p->x , p->y,color);	
+			drawSquare(xc,yc,tam,tam,color);	
+	}       else drawPixel(xc,yc,color);	
 }
-
-
-// Convert iteration count to color value (0-255)
-// Scales colors based on current max_iterations for smooth gradients
-int calculateColor(BYTE maxiters){	
-	if (maxiters==255) {
-		return 255; // Black for points in the set
-	}
-
-	// Scale color based on max_iterations for better distribution
-	int scaled_color = (int)((double)maxiters * 254.0 / (double)max_iterations);	
-	return menormax(254 - scaled_color);
-	
-}
-
-
-
 
 // Progressive fractal rendering using multiple passes with decreasing block sizes
 // Starts with large blocks and refines to individual pixels for smooth user experience
@@ -158,33 +171,51 @@ void renderFractal(void)
 	// Progressive rendering: 9 passes from 256x256 blocks down to 1x1 pixels
 	for (int r = 0; r < 9; r++)
 	{
-
+#ifdef DEBUG_PAUSE_ITERATIONS
+		// Debug: pause and wait for OK button at each iteration
+		char debug_msg[100];
+		sprintf(debug_msg, "Debug: Iteration %d\nPress OK to continue...", r);
+		MessageBox(main_window_handle, debug_msg, "Debug Pause", MB_OK);
+#endif
+		
 		int current_block_size = initial_block_size >> r; // Bit shift is faster than pow(2,r)
 		if (current_block_size>=global_pixel_size) continue;
 		
-		// Create work items for thread pool
+		// Create work items for thread pool		
 		Point p;
-		for (i = 0; i*current_block_size < WINDOW_WIDTH - current_block_size; i += 1)
+		for (i = 0; i*current_block_size < WINDOW_WIDTH ; i += 1)
 		{				
-			for (j = 0; j*current_block_size < WINDOW_HEIGHT - current_block_size; j += 1)
+			for (j = 0; j*current_block_size < WINDOW_HEIGHT ; j += 1)
 			{				
 				p.x=i*current_block_size;
 				p.y=j*current_block_size;	
 				p.tam=current_block_size;
-				
+#ifdef useUniformBlockOptimization
+				p.optimizeArea = (r>3) ? 1 : 0;
+#endif				
 				threadpool_add(thread_pool, calculateAndDraw,&p,sizeof(Point));
-
 			}
 		}
 
 		// Wait for all threads to complete this pass
-		threadpool_wait_all(thread_pool);
+		threadpool_wait_all(thread_pool);		
 		drawFractal(main_window_handle);
 		onClearMessageQueue();
 	}
 	wsprintf(s, "Fractal %d %%", 100);
 	updateStatusBar(s, 0, 0);
 	isImageLoaded = TRUE;
+}
+
+// Convert iteration count to color value (0-255)
+// Scales colors based on current max_iterations for smooth gradients
+int calculateColor(BYTE iterations){	
+	
+	if(iterations==MANDELBROTPOINT_VALUE) return (COLOR_COUNT-1); //point in set.
+	// Scale color based on max_iterations for better distribution
+	int scaled_color = (int)((double)iterations * (COLOR_COUNT-1) / (double)max_iterations);	
+	return scaled_color;
+	
 }
 
 // Draw the selection rectangle when user is dragging to select zoom area
@@ -442,7 +473,7 @@ void animateColorRotation(void)
 	while ((isColorRotationActive) && (main_window_handle != 0))
 	{
 		color_offset = color_offset + 1;
-		if (color_offset>254) color_offset=0;
+		if (color_offset>=COLOR_COUNT) color_offset=0;
 		fillColors();
 		if (main_window_handle != 0)
 			drawFractal(main_window_handle);

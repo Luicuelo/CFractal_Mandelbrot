@@ -9,19 +9,24 @@
     #include <stdbool.h>
 #endif
 
+//#define DEBUG_PAUSE_ITERATIONS // Debug symbol for conditional compilation
+//#define useUniformBlockOptimization // Uncomment to enable uniform block optimization for faster rendering
 //#define useConvergenceThreshold // Uncomment to enable convergence checking, this should accelerate the calculations
 #ifdef useConvergenceThreshold
-  const double CONVERGENCE_THRESHOLD = 8;
+  #define  CONVERGENCE_THRESHOLD 8.0
 #endif
 
+
 #define ESCAPE_RADIUS_SQUARED 4.0  // 2^2 = 4
-#define menormax(c) (c < 0 ? 0 : (c > 254 ? 254 : c)) // 255 es un valor reservado.
 
 bool invertColors;
 typedef struct _point {
   int x;
   int y;
   int tam;
+#ifdef useUniformBlockOptimization
+  int optimizeArea;
+#endif
 } Point;
 
 void renderFractal(void);
@@ -48,5 +53,10 @@ char *generateSaveFilename(void);
 char *cadenaSave(void);
 int drawSelectionRectangle(HDC hDC);
 void onSaveFractal(LPCTSTR lpszFileName, BOOL bOverwriteExisting);
+
+#ifdef useUniformBlockOptimization
+void fillMemorySquare(int x, int y, int w, int h, BYTE value);
+bool areCornersUniformAndCalculated(int a, int b, int c, int d);
+#endif
 
 #endif // DIBUJA_H
