@@ -10,10 +10,13 @@
 #endif
 
 //#define DEBUG_PAUSE_ITERATIONS // Debug symbol for conditional compilation
-//#define useUniformBlockOptimization // Uncomment to enable uniform block optimization for faster rendering
-//#define useConvergenceThreshold // Uncomment to enable convergence checking, this should accelerate the calculations
+#define useUniformBlockOptimization // Uncomment to enable uniform block optimization for faster rendering
+#ifdef useUniformBlockOptimization
+  #define  BLOCK_OPTIMIZATION_SIZE 8.0
+#endif
+#define useConvergenceThreshold // Uncomment to enable convergence checking, this should accelerate the calculations
 #ifdef useConvergenceThreshold
-  #define  CONVERGENCE_THRESHOLD 8.0
+  #define  CONVERGENCE_THRESHOLD 12.0
 #endif
 
 
@@ -24,9 +27,6 @@ typedef struct _point {
   int x;
   int y;
   int tam;
-#ifdef useUniformBlockOptimization
-  int optimizeArea;
-#endif
 } Point;
 
 void renderFractal(void);
@@ -39,7 +39,6 @@ void onClearMemory(void);
 void onInitializeFractal(void);
 void onRepaint(void);
 
-int calculateColor(BYTE maxiters);
 void expandMemory(int startX, int startY, int newWidth, int newHeight, double scaleX, double scaleY);
 void calculateAndDraw(Point *p);
 void calculateSquarePoint(Point *p);

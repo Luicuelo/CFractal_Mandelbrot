@@ -52,7 +52,7 @@ typedef enum {
 
 typedef struct {
     void (*function)(void *);
-    void * argument; //this has been altered.
+    Point argument; // Cambio a Point directo para evitar malloc/free
 } threadpool_task_t;
 
 /**
@@ -151,7 +151,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size, int flags)
 }
 
 int threadpool_add(threadpool_t *pool, void (*function)(void *),
-                  void* argument, int argument_size)
+                  void* argument)
 {
     int err = 0;
     int next;
@@ -166,8 +166,6 @@ int threadpool_add(threadpool_t *pool, void (*function)(void *),
     next = (pool->tail + 1) % pool->queue_size;
 
     do {
-
-
         /* Are we shutting down ? */
         if(pool->shutdown) {
             err = threadpool_shutdown;
@@ -176,29 +174,14 @@ int threadpool_add(threadpool_t *pool, void (*function)(void *),
 
         /* Are we full ? */
         if((pool->count+1) >= pool->queue_size) {
-            //err = threadpool_queue_full;
-            //break;
-            //DebugPrint("->Intento Hilo %d, hay tareas %d, de total %d\n",next,pool->count,pool->queue_size);
             cnd_wait(&(pool->queue_notify), &(pool->lock));
         }
 
-
-        //DebugPrint("->Añadido Hilo %d, hay tareas %d, de total %d\n",next,pool->count,pool->queue_size);
         /* Add task to queue */
-
-        void * targument= malloc(argument_size);
-        if (targument == NULL) {
-            err = threadpool_lock_failure;
-            break;
-        }
-        memcpy(targument, argument, argument_size);
-
         pool->queue[pool->tail].function = function;
-        pool->queue[pool->tail].argument = targument;
+        memcpy(&pool->queue[pool->tail].argument, argument, sizeof(Point));
         pool->tail = next;
         pool->count += 1;
-
-       //DebugPrint("->Añadido Hilo %d, hay tareas %d\n",next,pool->count);
 
         /* pthread_cond_broadcast */
         if(cnd_signal(&(pool->notify)) != thrd_success) {
@@ -270,12 +253,6 @@ int threadpool_free(threadpool_t *pool)
         pool->threads = NULL;
 
         if(pool->queue) {
-            for(int i = 0; i < pool->queue_size; i++) {
-                if(pool->queue[i].argument != NULL) {
-                    free(pool->queue[i].argument);
-                    pool->queue[i].argument = NULL;
-                }
-            }
             free(pool->queue);
             pool->queue = NULL;
         }
@@ -304,9 +281,6 @@ static void *threadpool_thread(void *threadpool)
         return NULL;
     }
 
-    // Initialize task to avoid uninitialized memory
-    task.function = NULL;
-    task.argument = NULL;
 
     for(;;) {
          /* Lock must be taken to wait on conditional variable */
@@ -326,10 +300,7 @@ static void *threadpool_thread(void *threadpool)
 
         /* Grab our task */
         task.function = pool->queue[pool->head].function;
-        task.argument = pool->queue[pool->head].argument; //es una variable local  a la funcion del hilo, 
-                                                          //no va a cambiar aunque se encole otra tarea 
-
-        pool->queue[pool->head].argument = NULL;//ha quedado copiado, y será destruido
+        task.argument = pool->queue[pool->head].argument; // Copia directa del struct Point
 
         //DebugPrint(" Arranca Hilo %d, hay tareas %d\n",(pool->head + 1) % pool->queue_size,pool->count-1);
         pool->head = (pool->head + 1) % pool->queue_size;
@@ -342,12 +313,7 @@ static void *threadpool_thread(void *threadpool)
 
         /* Get to work */
         if (task.function != NULL) {
-            (*(task.function))(task.argument);
-        }
-
-        if (task.argument != NULL) {
-            free(task.argument);
-            task.argument = NULL;
+            (*(task.function))(&task.argument);
         }
         
         /* Lock the mutex before accessing the task counter and condition variable */
@@ -362,11 +328,7 @@ static void *threadpool_thread(void *threadpool)
         mtx_unlock(&(pool->lock));
     }
 
-    // Clean up any remaining task argument on shutdown
-    if (task.argument != NULL) {
-        free(task.argument);
-        task.argument = NULL;
-    }
+    // No cleanup needed for Point struct
     
     pool->started--;
 

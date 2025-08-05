@@ -5,7 +5,7 @@
 
 #define IDM_STATUSBAR 3000
 
-extern HWND hWndStatusbar;
+HWND hWndStatusbar;
 
 BOOL createSBar(HWND hwndParent, char *initialText, int nrOfParts);
 void initializeStatusBar(HWND hwndParent, int nrOfParts);

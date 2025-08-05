@@ -6,12 +6,6 @@
     #include <stdbool.h>
 #endif
 
-// Declarar la variable como externa.
-extern HWND main_window_handle;
-
-// Handle para la barra de estado.
-HWND hWndStatusbar;
-
 // Función para crear la barra de estado.
 BOOL createSBar(HWND hwndParent, char *initialText, int nrOfParts) {
     RECT parentRect;

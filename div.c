@@ -10,7 +10,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-
+int max_iterations;
 bool invertColors;
 
 typedef struct tagBITMAPINFO_E
@@ -26,23 +26,29 @@ BYTE Pixels[WINDOW_HEIGHT][WINDOW_WIDTH];
 int color_offset;
 int temp_rect;
 
-// Set a single pixel with the specified color
-void drawPixel(int x, int y, BYTE color) {
-    if (x >= 0 && x < WINDOW_WIDTH && y >= 0 && y < WINDOW_HEIGHT) {
-        Pixels[y][x] = color;
+// Draw a filled square/rectangle.
+void drawSquare(int x, int y, int tam, BYTE iterations){
+
+    BYTE color;
+	if(iterations==MANDELBROTPOINT_VALUE) color= (COLOR_COUNT-1); //point in set.
+	else color = (BYTE)((double)iterations * (COLOR_COUNT-1) / (double)max_iterations);	
+    // Scale color based on max_iterations for better distribution
+
+    if(tam==1){
+        if (x >= 0 && x < WINDOW_WIDTH && y >= 0 && y < WINDOW_HEIGHT) {
+            Pixels[y][x] = color;
+        }
     }
-}
-
-// Draw a filled square/rectangle with the specified color
-void drawSquare(int x, int y, int w, int h, BYTE color) {
-    int a;
-
-    if (x < 0) x = 0;
-    if (y < 0) y = 0;
-    if (x + w > WINDOW_WIDTH - 1) w = WINDOW_WIDTH - 1 - x;
-    if (y + h > WINDOW_HEIGHT - 1) h = WINDOW_HEIGHT - 1 - y;
-    for (a = 0; a < h; a++)
-        memset(&Pixels[y + a][x], color, w);
+    else{
+        int w=tam;
+        int h=tam;
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        if (x + w > WINDOW_WIDTH - 1) w = WINDOW_WIDTH - 1 - x;
+        if (y + h > WINDOW_HEIGHT - 1) h = WINDOW_HEIGHT - 1 - y;
+        for (int a = 0; a < h; a++)
+            memset(&Pixels[y + a][x], color, w);
+    }
 }
 
 void color(int i,BYTE r,BYTE g, BYTE b)
@@ -54,6 +60,7 @@ void color(int i,BYTE r,BYTE g, BYTE b)
 }
 
 // Draw a border/outline rectangle with the specified color
+/*
 void drawBorder(int x, int y, int w, int h, BYTE color) {
     int a;
 
@@ -68,15 +75,15 @@ void drawBorder(int x, int y, int w, int h, BYTE color) {
     }
     memset(&Pixels[y + 0][x], color, w);
     memset(&Pixels[y + h - 1][x], color, w);
-}
+}*/
 
 // Fill the color palette with smooth gradient colors
 void fillColors(void) {
     int i;
 
-    bmi.bmiColors[0].rgbRed = 255;
-    bmi.bmiColors[0].rgbGreen = 255;
-    bmi.bmiColors[0].rgbBlue = 255;
+    bmi.bmiColors[0].rgbRed = 0;
+    bmi.bmiColors[0].rgbGreen = 0;
+    bmi.bmiColors[0].rgbBlue = 0;
     bmi.bmiColors[0].rgbReserved = 0;
 
     //Mandelbrot set Color
@@ -98,7 +105,7 @@ void fillColors(void) {
         green= (green%256);
         blue = (blue%256);
 
-        if (!invertColors){
+        if (invertColors){
             red=255-red;
             green=255-green;
             blue=255-blue;

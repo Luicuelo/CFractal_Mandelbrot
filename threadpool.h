@@ -31,6 +31,7 @@
 
 #include "source/tinycthread.h"
 #include <string.h>
+#include "dibuja.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -74,7 +75,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size, int flags);
  * threadpool_error_t for codes).
  */
 int threadpool_add(threadpool_t *pool, void (*routine)(void *),
-                   void *arg, int argument_size);
+                   void *arg);
 
 /**
  * @function threadpool_destroy

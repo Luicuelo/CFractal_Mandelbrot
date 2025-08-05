@@ -10,6 +10,7 @@
 #endif
 #include <stdio.h> 
 
+int max_iterations = DEFAULT_MAXITERATIONS;  
 BYTE Memory[WINDOW_HEIGHT][WINDOW_WIDTH];
 int temp_rect;
 
@@ -25,7 +26,6 @@ int global_pixel_size;
 
 double current_zoom = 1.0;
 double absolute_zoom = 1.0; // Track total zoom from initial state
-int max_iterations = DEFAULT_MAXITERATIONS;
 double complex_step_x;
 double complex_step_y;
 double complex_origin_x;
@@ -37,10 +37,6 @@ bool isImageLoaded;
 //int maxiter = 150;
 char s[255]; // se utiliza en la barra de estado
 
-// int aciertos;
-
-extern HWND main_window_handle;
-extern struct threadpool_t *thread_pool;
 
 // Clear the memory buffer that stores calculated Mandelbrot iterations
 void onClearMemory() {
@@ -55,16 +51,19 @@ BYTE calculateMandelbrotPoint(int column, int row)
 
 	int iterations;
 	Comp c;
+	Comp current;
+#ifdef useConvergenceThreshold	
 	Comp previous;
 	Comp difference;
-	Comp current;
-
+	initComplex(0, 0, previous);
+#endif
 
 	// Convert pixel coordinates to complex plane coordinates
 	c.x = complex_step_x * column + complex_origin_x;
 	c.y = complex_step_y * row + complex_origin_y;
 
-	initComplex(0, 0, previous);
+	
+	//initComplex(0, 0, current);
 	assign (current, c);
 	// Mandelbrot iteration: z(n+1) = z(n)^2 + c
 	// z(0)=0 ,z(1)=c
@@ -87,7 +86,6 @@ BYTE calculateMandelbrotPoint(int column, int row)
 	}
 #endif
 
-	if(iterations==0) return 1;
 	// Point is in the Mandelbrot set
 	if (iterations >= max_iterations) return (MANDELBROTPOINT_VALUE);
 	// Point diverged
@@ -98,61 +96,58 @@ BYTE calculateMandelbrotPoint(int column, int row)
 #ifdef useUniformBlockOptimization
 // Fill a square/rectangle in Memory with the specified value (equivalent to drawSquare for Memory)
 void fillMemorySquare(int x, int y, int w, int h, BYTE value) {
-    int a;
-
     if (x < 0) x = 0;
     if (y < 0) y = 0;
     if (x + w > WINDOW_WIDTH - 1) w = WINDOW_WIDTH - 1 - x;
     if (y + h > WINDOW_HEIGHT - 1) h = WINDOW_HEIGHT - 1 - y;
-    for (a = 0; a < h; a++)
+    for (int a = 0; a < h; a++)
         memset(&Memory[y + a][x], value, w);
 }
 
 // Check if 4 corners are uniform or close to their mean value
 bool areCornersUniformAndCalculated(int a, int b, int c, int d) {
-
-	return (a > 0 && a == b && b == c && c == d);
+	//Only optimize if point is outside the set , optimize the set fails near the neck
+	return (a > 0 && a == b && b == c && c == d && (a != MANDELBROTPOINT_VALUE));
 }
 #endif
 
 // Calculate Mandelbrot value and draw a square block of pixels
 void calculateAndDraw(Point *p){
 
-	BYTE iters;
+	BYTE iterations;
 	BYTE color;
 	int xc=p->x;
 	int yc=p->y;
 	int tam=p->tam;
 
 	// Check if point already calculated
-	iters=Memory[yc][xc];	
+	iterations=Memory[yc][xc];	
 	//!=0 Already calculated	
-	if(iters==0) {
+	if(iterations==0) {
 			// Calculate Mandelbrot value and store in memory
-			iters=calculateMandelbrotPoint(xc, yc);
-			Memory[yc][xc]=iters;
+			iterations=calculateMandelbrotPoint(xc, yc);
+			Memory[yc][xc]=iterations;
 	}
-	color=calculateColor(iters);
 
 #ifdef useUniformBlockOptimization
 			// For blocks > 1, check if this is bottom-right corner of a uniform block
-			if (tam > 1 && xc >= tam && yc >= tam && p->optimizeArea) {
+			if (tam > 1 && xc >= tam && yc >= tam && tam<=BLOCK_OPTIMIZATION_SIZE) {
 				// Check if the 3 previously calculated corners are equal to current
 				BYTE topLeft = Memory[yc-tam][xc-tam];
 				BYTE topRight = Memory[yc-tam][xc];
 				BYTE bottomLeft = Memory[yc][xc-tam];
 
-				if (areCornersUniformAndCalculated(topLeft, topRight, bottomLeft, iters)) {
+				if (tam>1 && areCornersUniformAndCalculated(topLeft, topRight, bottomLeft, iterations)) {
 					// Fill Memory with the mean value using optimized function
-					fillMemorySquare(xc-tam, yc-tam, tam, tam, iters);    
-					//drawSquare(xc-tam,yc-tam,tam,tam,0 );	        
+					fillMemorySquare(xc-tam, yc-tam, tam, tam, iterations);    
+					//drawSquare(xc-tam,yc-tam,tam,0 );	        
 				}
 			}
 #endif
 
-	if (p->tam > 1) {
-			drawSquare(xc,yc,tam,tam,color);	
-	}       else drawPixel(xc,yc,color);	
+	
+		drawSquare(xc,yc,tam,iterations);	
+	
 }
 
 // Progressive fractal rendering using multiple passes with decreasing block sizes
@@ -160,10 +155,7 @@ void calculateAndDraw(Point *p){
 void renderFractal(void)
 {
 
-	int a;
-	int min = 1000;
 	isImageLoaded = FALSE;
-
 	int i;
 	int j;
 	int initial_block_size = 256;
@@ -179,6 +171,7 @@ void renderFractal(void)
 #endif
 		
 		int current_block_size = initial_block_size >> r; // Bit shift is faster than pow(2,r)
+		if (current_block_size < 1) break; 
 		if (current_block_size>=global_pixel_size) continue;
 		
 		// Create work items for thread pool		
@@ -186,14 +179,15 @@ void renderFractal(void)
 		for (i = 0; i*current_block_size < WINDOW_WIDTH ; i += 1)
 		{				
 			for (j = 0; j*current_block_size < WINDOW_HEIGHT ; j += 1)
-			{				
-				p.x=i*current_block_size;
-				p.y=j*current_block_size;	
-				p.tam=current_block_size;
-#ifdef useUniformBlockOptimization
-				p.optimizeArea = (r>3) ? 1 : 0;
-#endif				
-				threadpool_add(thread_pool, calculateAndDraw,&p,sizeof(Point));
+			{	
+				if (current_block_size == 1 && Memory[j][i] != 0) {
+            		drawSquare(i, j,1, Memory[j][i]);
+        		} else {			
+					p.x=i*current_block_size;
+					p.y=j*current_block_size;	
+					p.tam=current_block_size;		
+					threadpool_add(thread_pool, calculateAndDraw, &p);
+				}
 			}
 		}
 
@@ -205,17 +199,6 @@ void renderFractal(void)
 	wsprintf(s, "Fractal %d %%", 100);
 	updateStatusBar(s, 0, 0);
 	isImageLoaded = TRUE;
-}
-
-// Convert iteration count to color value (0-255)
-// Scales colors based on current max_iterations for smooth gradients
-int calculateColor(BYTE iterations){	
-	
-	if(iterations==MANDELBROTPOINT_VALUE) return (COLOR_COUNT-1); //point in set.
-	// Scale color based on max_iterations for better distribution
-	int scaled_color = (int)((double)iterations * (COLOR_COUNT-1) / (double)max_iterations);	
-	return scaled_color;
-	
 }
 
 // Draw the selection rectangle when user is dragging to select zoom area
@@ -278,7 +261,7 @@ void onInitializeFractal(void) {
     onClearMemory();
     fillColors();
 
-    drawSquare(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    drawSquare(0, 0, WINDOW_WIDTH, 15);
     drawFractal(main_window_handle);
     onClearMessageQueue();
     renderFractal();
@@ -325,7 +308,7 @@ void expandMemory(int startX, int startY, int newWidth, int newHeight, double sc
             // Bounds checking to prevent buffer overflow
             if (posy >= 0 && posy < WINDOW_HEIGHT && posx >= 0 && posx < WINDOW_WIDTH) {
                 Memory[posy][posx] = oldMemoryToExpand[i*newWidth+j];
-                drawSquare(posx,posy,global_pixel_size,global_pixel_size,calculateColor(Memory[posy][posx]));
+                drawSquare(posx,posy,global_pixel_size,global_pixel_size,(Memory[posy][posx]));
             }
         }
     }
