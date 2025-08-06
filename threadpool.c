@@ -87,11 +87,11 @@ struct threadpool_t {
 };
 
 /**
- * @function void *threadpool_thread(void *threadpool)
+ * @function int threadpool_thread(void *threadpool)
  * @brief the worker thread
  * @param threadpool the pool which own the thread
  */
-static void *threadpool_thread(void *threadpool);
+static int threadpool_thread(void *threadpool);
 
 int threadpool_free(threadpool_t *pool);
 
@@ -271,14 +271,13 @@ int threadpool_free(threadpool_t *pool)
 }
 
 
-static void *threadpool_thread(void *threadpool)
+static int threadpool_thread(void *threadpool)
 {
     threadpool_t *pool = (threadpool_t *)threadpool;
     threadpool_task_t task;
     
     if (pool == NULL) {
-        thrd_exit(0);
-        return NULL;
+        return 0;
     }
 
 
@@ -337,8 +336,7 @@ static void *threadpool_thread(void *threadpool)
     }
 
     mtx_unlock(&(pool->lock));
-    thrd_exit(0);
-    return NULL;
+    return 0;
 }
 
 /* En el hilo principal, espera a que todas las tareas se hayan completado */

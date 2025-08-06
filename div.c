@@ -79,7 +79,7 @@ void drawBorder(int x, int y, int w, int h, BYTE color) {
 
 // Fill the color palette with smooth gradient colors
 void fillColors(void) {
-    int i;
+    int i = 0;
 
     bmi.bmiColors[0].rgbRed = 0;
     bmi.bmiColors[0].rgbGreen = 0;
@@ -95,15 +95,15 @@ void fillColors(void) {
     
     for (int i = 0; i < (COLOR_COUNT - 2); i++) {
 
-        int green = i % 256;;
+        int green = i % 256;
         int blue = (i * 2) % 256;
-        int red= (i /2) % 256;
+        int red = (i / 2) % 256;
    
      //int green = (int)(127.5 * (1 + cos(i * 0.1 + 2 * M_PI / 3)));
    
-        red= (red%256);
-        green= (green%256);
-        blue = (blue%256);
+        red = (red % 256);
+        green = (green % 256);
+        blue = (blue % 256);
 
         if (invertColors){
             red=255-red;
@@ -111,7 +111,7 @@ void fillColors(void) {
             blue=255-blue;
         }
 
-        int ca = ((i + color_offset) % (COLOR_COUNT-2))+1;
+        int ca = ((i + color_offset) % (COLOR_COUNT - 2)) + 1;
         //char debug_msg[50];
         //sprintf(debug_msg, "i=%d, ca=%d\n", i, ca);
         //OutputDebugString(debug_msg);
@@ -124,7 +124,7 @@ void fillColors(void) {
 
 void createDIB(HWND hwndParent)
 {
-    RECT  rectP;
+    RECT rectP = {0};
     GetWindowRect(hwndParent, &rectP);
     bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
     bmi.bmiHeader.biWidth = WINDOW_WIDTH;          // Width in pixels.
@@ -142,8 +142,8 @@ void createDIB(HWND hwndParent)
 
 // Save the current fractal image as a BMP file
 void saveFractal(LPCTSTR lpszFileName, BOOL bOverwriteExisting) {
-    DWORD bytesWritten;
-    BOOL writeResult;
+    DWORD bytesWritten = 0;
+    BOOL writeResult = FALSE;
 
     if (lpszFileName == NULL) return;
 
@@ -173,9 +173,9 @@ void saveFractal(LPCTSTR lpszFileName, BOOL bOverwriteExisting) {
 
 // Draw the complete fractal image to the window
 void drawFractal(HWND hWnd) {
-    HDC compat_dc;
+    HDC compat_dc = NULL;
     HDC hDC = GetDC(hWnd);
-    HBITMAP dib;
+    HBITMAP dib = NULL;
     compat_dc = CreateCompatibleDC(hDC); // Create a compatible device context.
 
     dib = CreateDIBitmap(hDC,

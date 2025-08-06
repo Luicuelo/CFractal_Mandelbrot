@@ -34,21 +34,20 @@ double complex_origin_y;
 const double INITIALFRACTALSIZE = 2.9;
 
 bool isImageLoaded;
-//int maxiter = 150;
-char s[255]; // se utiliza en la barra de estado
+char s[255]; // Status bar buffer
 
-
-// Clear the memory buffer that stores calculated Mandelbrot iterations
 void onClearMemory() {
     memset(Memory, 0, WINDOW_HEIGHT * WINDOW_WIDTH * sizeof(BYTE));
 }
 
-// Calculate if a point belongs to the Mandelbrot set
-// Returns 255 if in set, otherwise returns iteration count when it diverged
+/**
+ * Calculate if a point belongs to the Mandelbrot set
+ * @param column Pixel x coordinate
+ * @param row Pixel y coordinate  
+ * @return 255 if in set, otherwise iteration count when diverged
+ */
 BYTE calculateMandelbrotPoint(int column, int row)
 {
-	
-
 	int iterations;
 	Comp c;
 	Comp current;
@@ -62,13 +61,8 @@ BYTE calculateMandelbrotPoint(int column, int row)
 	c.x = complex_step_x * column + complex_origin_x;
 	c.y = complex_step_y * row + complex_origin_y;
 
-	
-	//initComplex(0, 0, current);
 	assign (current, c);
-	// Mandelbrot iteration: z(n+1) = z(n)^2 + c
-	// z(0)=0 ,z(1)=c
-	// Check if sequence remains bounded (|z| <= 2)
-    // Mandelbrot iteration: z(n+1) = z(n)^2 + c
+	// Mandelbrot iteration: z(n+1) = z(n)^2 + c, z(0)=c
 
 #ifdef useConvergenceThreshold
 	double convergence_diff = 0.0;
@@ -86,15 +80,11 @@ BYTE calculateMandelbrotPoint(int column, int row)
 	}
 #endif
 
-	// Point is in the Mandelbrot set
 	if (iterations >= max_iterations) return (MANDELBROTPOINT_VALUE);
-	// Point diverged
 	return (iterations);
-	
 }
 
 #ifdef useUniformBlockOptimization
-// Fill a square/rectangle in Memory with the specified value (equivalent to drawSquare for Memory)
 void fillMemorySquare(int x, int y, int w, int h, BYTE value) {
     if (x < 0) x = 0;
     if (y < 0) y = 0;
@@ -104,92 +94,73 @@ void fillMemorySquare(int x, int y, int w, int h, BYTE value) {
         memset(&Memory[y + a][x], value, w);
 }
 
-// Check if 4 corners are uniform or close to their mean value
+// Only optimize if point is outside the set - optimization fails near the neck
 bool areCornersUniformAndCalculated(int a, int b, int c, int d) {
-	//Only optimize if point is outside the set , optimize the set fails near the neck
 	return (a > 0 && a == b && b == c && c == d && (a != MANDELBROTPOINT_VALUE));
 }
 #endif
 
-// Calculate Mandelbrot value and draw a square block of pixels
 void calculateAndDraw(Point *p){
-
 	BYTE iterations;
-	BYTE color;
 	int xc=p->x;
 	int yc=p->y;
 	int tam=p->tam;
 
-	// Check if point already calculated
 	iterations=Memory[yc][xc];	
-	//!=0 Already calculated	
 	if(iterations==0) {
-			// Calculate Mandelbrot value and store in memory
-			iterations=calculateMandelbrotPoint(xc, yc);
-			Memory[yc][xc]=iterations;
+		iterations=calculateMandelbrotPoint(xc, yc);
+		Memory[yc][xc]=iterations;
 	}
 
 #ifdef useUniformBlockOptimization
-			// For blocks > 1, check if this is bottom-right corner of a uniform block
-			if (tam > 1 && xc >= tam && yc >= tam && tam<=BLOCK_OPTIMIZATION_SIZE) {
-				// Check if the 3 previously calculated corners are equal to current
-				BYTE topLeft = Memory[yc-tam][xc-tam];
-				BYTE topRight = Memory[yc-tam][xc];
-				BYTE bottomLeft = Memory[yc][xc-tam];
+	// For blocks > 1, check if this is bottom-right corner of a uniform block
+	if (tam > 1 && xc >= tam && yc >= tam && tam<=BLOCK_OPTIMIZATION_SIZE) {
+		BYTE topLeft = Memory[yc-tam][xc-tam];
+		BYTE topRight = Memory[yc-tam][xc];
+		BYTE bottomLeft = Memory[yc][xc-tam];
 
-				if (tam>1 && areCornersUniformAndCalculated(topLeft, topRight, bottomLeft, iterations)) {
-					// Fill Memory with the mean value using optimized function
-					fillMemorySquare(xc-tam, yc-tam, tam, tam, iterations);    
-					//drawSquare(xc-tam,yc-tam,tam,0 );	        
-				}
-			}
+		if (tam>1 && areCornersUniformAndCalculated(topLeft, topRight, bottomLeft, iterations)) {
+			fillMemorySquare(xc-tam, yc-tam, tam, tam, iterations);    
+		}
+	}
 #endif
 
-	
-		drawSquare(xc,yc,tam,iterations);	
-	
+	drawSquare(xc,yc,tam,iterations);	
 }
 
-// Progressive fractal rendering using multiple passes with decreasing block sizes
-// Starts with large blocks and refines to individual pixels for smooth user experience
-
+/**
+ * Progressive fractal rendering using multiple passes with decreasing block sizes
+ * Starts with large blocks and refines to individual pixels for smooth user experience
+ */
 void renderFractalInternal(RenderFractalInternalParams *rp){
-		// Create work items for thread pool		
-		int current_block_size = rp->current_block_size;
-		int k= rp->thread;
+	int current_block_size = rp->current_block_size;
+	int k= rp->thread;
 
-		Point p;
-		for (int i = k; i*current_block_size < WINDOW_WIDTH ; i += DEFAULT_THREAD_COUNT)
-		{				
-			for (int j = 0; j*current_block_size < WINDOW_HEIGHT ; j += 1)
-			{	
-				if (current_block_size == 1 && Memory[j][i] != 0) {
-            		drawSquare(i, j,1, Memory[j][i]);
-        		} else {			
-					p.x=i*current_block_size;
-					p.y=j*current_block_size;	
-					p.tam=current_block_size;		
-					//threadpool_add(thread_pool, calculateAndDraw, &p);
-					calculateAndDraw(&p);
-				}
+	Point p;
+	for (int i = k; i*current_block_size < WINDOW_WIDTH ; i += DEFAULT_THREAD_COUNT)
+	{				
+		for (int j = 0; j*current_block_size < WINDOW_HEIGHT ; j += 1)
+		{	
+			if (current_block_size == 1 && Memory[j][i] != 0) {
+        		drawSquare(i, j,1, Memory[j][i]);
+    		} else {			
+				p.x=i*current_block_size;
+				p.y=j*current_block_size;	
+				p.tam=current_block_size;		
+				calculateAndDraw(&p);
 			}
 		}
-
-		// Wait for all threads to complete this pass
-	
-	}
+	}	
+}
 
 void renderFractal(void)
 {
-
 	isImageLoaded = FALSE;
 	int initial_block_size = 256;
 
 	// Progressive rendering: 9 passes from 256x256 blocks down to 1x1 pixels
 	for (int r = 0; r < 9; r++)
 	{
-
-		
 		int current_block_size = initial_block_size >> r; // Bit shift is faster than pow(2,r)
 		if (current_block_size < 1) break; 
 		if (current_block_size>=global_pixel_size) continue;
@@ -198,11 +169,9 @@ void renderFractal(void)
 			RenderFractalInternalParams rp;
 			rp.current_block_size=current_block_size;
 			rp.thread=k;
-			//renderFractalInternal(&rp);
 			threadpool_add(thread_pool, renderFractalInternal, &rp);
 
 #ifdef DEBUG_PAUSE_ITERATIONS
-			// Debug: pause and wait for OK button at each iteration
 			char debug_msg[100];
 			sprintf(debug_msg, "Debug: Iteration %d-%d\nPress OK to continue...", r,k);
 			MessageBox(main_window_handle, debug_msg, "Debug Pause", MB_OK);
@@ -218,40 +187,31 @@ void renderFractal(void)
 	isImageLoaded = TRUE;
 }
 
-// Draw the selection rectangle when user is dragging to select zoom area
 int drawSelectionRectangle(HDC hDC)
 {
-	HPEN oldpen;
-	HBRUSH oldbr;
-	if (isImageLoaded)
+	HPEN oldpen = NULL;
+	HBRUSH oldbr = NULL;
+	if (isImageLoaded && isButtonPressed)
 	{
-		if (isButtonPressed)
-		{
-
-			int rs;
-			HBRUSH br;
-			// Create green dashed pen for selection rectangle
-			HPEN pen1 = CreatePen(PS_DASH, 1, RGB(50, 255, 50));
-			br = (HBRUSH)GetStockObject(HOLLOW_BRUSH);
-			oldpen = (HPEN)SelectObject(hDC, pen1);
-			oldbr = (HBRUSH)SelectObject(hDC, br);
-			SelectObject(hDC, br);
-			rs = Rectangle(hDC, mouse_down_x, mouse_down_y, mouse_up_x, mouse_up_y);
-			SelectObject(hDC, oldpen);
-			DeleteObject(pen1);
-			SelectObject(hDC, oldbr);
-			DeleteObject(br);
-			return (rs);
-		}
+		int rs = 0;
+		HBRUSH br = NULL;
+		HPEN pen1 = CreatePen(PS_DASH, 1, RGB(50, 255, 50));
+		br = (HBRUSH)GetStockObject(HOLLOW_BRUSH);
+		oldpen = (HPEN)SelectObject(hDC, pen1);
+		oldbr = (HBRUSH)SelectObject(hDC, br);
+		SelectObject(hDC, br);
+		rs = Rectangle(hDC, mouse_down_x, mouse_down_y, mouse_up_x, mouse_up_y);
+		SelectObject(hDC, oldpen);
+		DeleteObject(pen1);
+		SelectObject(hDC, oldbr);
+		DeleteObject(br);
+		return (rs);
 	}
 	return (0);
 }
-//---------------------------------------------------------------------------
-
 
 // Initialize fractal to default view (full Mandelbrot set)
 void onInitializeFractal(void) {
-    // Reset mouse selection area
     mouse_down_x = 0;
     mouse_down_y = 0;
     mouse_up_x = WINDOW_WIDTH;
@@ -263,9 +223,9 @@ void onInitializeFractal(void) {
 
     color_offset = 0;
 	invertColors=0;
-    isColorRotationActive = false; // Reset color rotation
-    absolute_zoom = 1.0; // Reset absolute zoom
-    max_iterations = DEFAULT_MAXITERATIONS; // Reset max iterations to default
+    isColorRotationActive = false;
+    absolute_zoom = 1.0;
+    max_iterations = DEFAULT_MAXITERATIONS;
 
     // Calculate step size for converting pixels to complex coordinates
     complex_step_x = ((INITIALFRACTALSIZE) / (double)(WINDOW_WIDTH));
@@ -284,11 +244,8 @@ void onInitializeFractal(void) {
     renderFractal();
 }
 
-
-// Expand previously calculated memory region to fill screen when zooming
-// Reuses existing calculations to provide immediate visual feedback
+// Reuses existing calculations to provide immediate visual feedback when zooming
 void expandMemory(int startX, int startY, int newWidth, int newHeight, double scaleX, double scaleY) {
-    // Validate input parameters to prevent overflow
     if (startX < 0 || startY < 0 || newWidth <= 0 || newHeight <= 0 ||
         startX >= WINDOW_WIDTH || startY >= WINDOW_HEIGHT ||
         scaleX <= 0.0 || scaleY <= 0.0) {
@@ -302,7 +259,6 @@ void expandMemory(int startX, int startY, int newWidth, int newHeight, double sc
 
     BYTE *oldMemoryToExpand = (BYTE *)malloc((size_t)newHeight * newWidth * sizeof(BYTE));
     if (oldMemoryToExpand == NULL) {
-        // Handle memory allocation failure
         return;
     }
 
@@ -316,63 +272,40 @@ void expandMemory(int startX, int startY, int newWidth, int newHeight, double sc
     onClearMemory();
 
     // Scale up the copied region to fill the entire screen
-	
     for (int i = 0; i < newHeight; i++) {
         for (int j = 0; j < newWidth; j++) {
             int posy = (int)(i / scaleY);
             int posx = (int)(j / scaleX);
             
-            // Bounds checking to prevent buffer overflow
             if (posy >= 0 && posy < WINDOW_HEIGHT && posx >= 0 && posx < WINDOW_WIDTH) {
                 Memory[posy][posx] = oldMemoryToExpand[i*newWidth+j];
                 drawSquare(posx,posy,global_pixel_size,(Memory[posy][posx]));
             }
         }
     }
-   /*
-	for (int y = 0; y < WINDOW_HEIGHT; y += global_pixel_size) {
-		for (int x = 0; x < WINDOW_WIDTH; x += global_pixel_size) {
-			int source_y = (int)(y * scaleY);
-			int source_x = (int)(x * scaleX);
-			
-			if (source_y < newHeight && source_x < newWidth) {
-				Memory[y][x] = oldMemoryToExpand[source_y*newWidth + source_x];
-				drawSquare(x, y, global_pixel_size, global_pixel_size, 
-						calculateColor(Memory[y][x]));
-			}
-		}
-	}*/
 
     free(oldMemoryToExpand);
 }
 
-// Rescale and zoom into the selected area of the fractal
 void rescaleView(void)
 {
-	// Update complex plane origin based on mouse selection
 	complex_origin_x += complex_step_x * (double)mouse_down_x;
 	complex_origin_y += complex_step_y * (double)mouse_down_y;
 
-	// Calculate dimensions of selected rectangle
 	int newWidth = (mouse_up_x - mouse_down_x + 1);
 	int newHeight = (mouse_up_y - mouse_down_y + 1);
 
-	// Calculate zoom factors
 	double factorX = (double)newWidth / (double)(WINDOW_WIDTH);
 	double factorY = (double)newHeight / (double)(WINDOW_HEIGHT);
 
-	// Update pixel size for progressive rendering
 	global_pixel_size = (int)(1/factorX) + 1;
 	
-	// Expand existing calculations to fill screen
 	expandMemory(mouse_down_x, mouse_down_y, newWidth, newHeight, factorX, factorY);
 	drawFractal(main_window_handle);
 	
-	// Update complex plane step size
 	complex_step_x *= factorX;
 	complex_step_y *= factorY;
 
-	// Calculate absolute zoom from initial state
 	double zoom_factor = 1.0 / ((factorX + factorY) / 2.0);
 	absolute_zoom *= zoom_factor;
 	
@@ -381,23 +314,20 @@ void rescaleView(void)
 	if (max_iterations < 50) max_iterations = 50;
 	if (max_iterations > 2000) max_iterations = 2000;
 	
-	// Debug: show zoom and iterations in status bar
 	sprintf(s, "Zoom: %.1fx, Iterations: %d", absolute_zoom, max_iterations);
 	updateStatusBar(s, 0, 0);
 }
-//---------------------------------------------------------------------------
-// Handle mouse movement during selection rectangle drawing
+
 void handleMouseMove(int x, int y, HWND hwnd)
 {
-	HDC hDC;
-	double complexStartX, complexStartY;
-	double complexEndX, complexEndY;
+	HDC hDC = NULL;
+	double complexStartX = 0.0, complexStartY = 0.0;
+	double complexEndX = 0.0, complexEndY = 0.0;
 
 	if (isImageLoaded && isButtonPressed)
 	{
 		int rectWidth, rectHeight;
 		
-		// Update mouse position
 		mouse_up_x = x;
 		mouse_up_y = y;
 		
@@ -406,16 +336,13 @@ void handleMouseMove(int x, int y, HWND hwnd)
 		rectHeight = (mouse_up_y - mouse_down_y);
 		((rectWidth) < (rectHeight)) ? (mouse_up_x = mouse_down_x + rectHeight) : (mouse_up_y = mouse_down_y + rectWidth);
 
-		// Redraw fractal and selection rectangle
 		drawFractal(hwnd);
 		hDC = GetDC(hwnd);
 		drawSelectionRectangle(hDC);
 
-		// Update status bar with pixel coordinates
 		wsprintf(s, " Position: %d/%d : %d/%d", mouse_down_x, mouse_down_y, mouse_up_x, mouse_up_y);
 		updateStatusBar(s, 0, 0);
 
-		// Calculate complex plane coordinates for status display
 		complexStartX = (complex_origin_x + complex_step_x * (double)mouse_down_x);
 		complexStartY = (complex_origin_y + complex_step_y * (double)mouse_down_y);
 
@@ -429,10 +356,8 @@ void handleMouseMove(int x, int y, HWND hwnd)
 	}
 }
 
-// Generate filename for saving fractal based on current view coordinates
 char *generateSaveFilename(void)
 {
-
 	double txi = (complex_origin_x) * 100.0;
 	double tyi = (complex_origin_y) * 100.0;
 
@@ -442,7 +367,7 @@ char *generateSaveFilename(void)
 	sprintf(s, "Fractal%2.0f_%2.0f_%2.0f_%2.0f.bmp ", txi, tyi, txf, tyf);
 	return (s);
 }
-// Handle mouse button release - complete zoom operation
+
 void onMouseUp(void)
 {
 	if (isImageLoaded)
@@ -454,7 +379,6 @@ void onMouseUp(void)
 	}
 }
 
-// Handle mouse button press - start selection rectangle
 void onMouseDown(int x, int y)
 {
 	if (isImageLoaded)
@@ -465,9 +389,6 @@ void onMouseDown(int x, int y)
 	}
 }
 
-//---------------------------------------------------------------------------
-
-// Animate color rotation effect
 void animateColorRotation(void)
 {
 	while ((isColorRotationActive) && (main_window_handle != 0))
@@ -480,7 +401,7 @@ void animateColorRotation(void)
 		sprintf(s, "Color: %d ", color_offset);
 		updateStatusBar(s, 0, 0);
 		Sleep(50);
-		onClearMessageQueue(); // Cambiado de vaciaCola
+		onClearMessageQueue();
 	}
 }
 
@@ -498,16 +419,19 @@ void onFractalKeyPress(BYTE key) {
 }
 
 void onFractalMouseMove(int X, int Y, HWND hwnd) {
+    if (X < 0 || X >= WINDOW_WIDTH || Y < 0 || Y >= WINDOW_HEIGHT) {
+        return;
+    }
     handleMouseMove(X, Y, hwnd);
 }
-//---------------------------------------------------------------------------
 
 void onFractalMouseDown(int X, int Y) {
+    if (X < 0 || X >= WINDOW_WIDTH || Y < 0 || Y >= WINDOW_HEIGHT) {
+        return;
+    }
     onMouseDown(X, Y);
 }
-//---------------------------------------------------------------------------
 
 void onFractalMouseUp(void) {
     onMouseUp();
 }
-//---------------------------------------------------------------------------

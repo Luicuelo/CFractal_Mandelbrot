@@ -9,17 +9,6 @@
     #include <stdbool.h>
 #endif
 
-//#define DEBUG_PAUSE_ITERATIONS // Debug symbol for conditional compilation
-#define useUniformBlockOptimization // Uncomment to enable uniform block optimization for faster rendering
-#ifdef useUniformBlockOptimization
-  #define  BLOCK_OPTIMIZATION_SIZE 8.0
-#endif
-#define useConvergenceThreshold // Uncomment to enable convergence checking, this should accelerate the calculations
-#ifdef useConvergenceThreshold
-  #define  CONVERGENCE_THRESHOLD 12.0
-#endif
-
-
 #define ESCAPE_RADIUS_SQUARED 4.0  // 2^2 = 4
 bool invertColors;
 typedef struct _renderFractalInternalParams{

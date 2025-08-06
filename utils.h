@@ -3,3 +3,4 @@
 #include <stdarg.h>
 
 void DebugPrint(const char *format, ...);
+int getOptimalThreadCount(void);
