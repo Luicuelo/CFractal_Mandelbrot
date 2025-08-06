@@ -52,7 +52,7 @@ typedef enum {
 
 typedef struct {
     void (*function)(void *);
-    Point argument; // Cambio a Point directo para evitar malloc/free
+    RenderFractalInternalParams argument; // direct argument ,no malloc/free
 } threadpool_task_t;
 
 /**

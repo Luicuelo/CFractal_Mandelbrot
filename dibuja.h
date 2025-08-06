@@ -21,8 +21,12 @@
 
 
 #define ESCAPE_RADIUS_SQUARED 4.0  // 2^2 = 4
-
 bool invertColors;
+typedef struct _renderFractalInternalParams{
+  int current_block_size;
+  int thread;
+} RenderFractalInternalParams;
+
 typedef struct _point {
   int x;
   int y;

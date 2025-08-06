@@ -152,33 +152,16 @@ void calculateAndDraw(Point *p){
 
 // Progressive fractal rendering using multiple passes with decreasing block sizes
 // Starts with large blocks and refines to individual pixels for smooth user experience
-void renderFractal(void)
-{
 
-	isImageLoaded = FALSE;
-	int i;
-	int j;
-	int initial_block_size = 256;
-
-	// Progressive rendering: 9 passes from 256x256 blocks down to 1x1 pixels
-	for (int r = 0; r < 9; r++)
-	{
-#ifdef DEBUG_PAUSE_ITERATIONS
-		// Debug: pause and wait for OK button at each iteration
-		char debug_msg[100];
-		sprintf(debug_msg, "Debug: Iteration %d\nPress OK to continue...", r);
-		MessageBox(main_window_handle, debug_msg, "Debug Pause", MB_OK);
-#endif
-		
-		int current_block_size = initial_block_size >> r; // Bit shift is faster than pow(2,r)
-		if (current_block_size < 1) break; 
-		if (current_block_size>=global_pixel_size) continue;
-		
+void renderFractalInternal(RenderFractalInternalParams *rp){
 		// Create work items for thread pool		
+		int current_block_size = rp->current_block_size;
+		int k= rp->thread;
+
 		Point p;
-		for (i = 0; i*current_block_size < WINDOW_WIDTH ; i += 1)
+		for (int i = k; i*current_block_size < WINDOW_WIDTH ; i += DEFAULT_THREAD_COUNT)
 		{				
-			for (j = 0; j*current_block_size < WINDOW_HEIGHT ; j += 1)
+			for (int j = 0; j*current_block_size < WINDOW_HEIGHT ; j += 1)
 			{	
 				if (current_block_size == 1 && Memory[j][i] != 0) {
             		drawSquare(i, j,1, Memory[j][i]);
@@ -186,13 +169,47 @@ void renderFractal(void)
 					p.x=i*current_block_size;
 					p.y=j*current_block_size;	
 					p.tam=current_block_size;		
-					threadpool_add(thread_pool, calculateAndDraw, &p);
+					//threadpool_add(thread_pool, calculateAndDraw, &p);
+					calculateAndDraw(&p);
 				}
 			}
 		}
 
 		// Wait for all threads to complete this pass
-		threadpool_wait_all(thread_pool);		
+	
+	}
+
+void renderFractal(void)
+{
+
+	isImageLoaded = FALSE;
+	int initial_block_size = 256;
+
+	// Progressive rendering: 9 passes from 256x256 blocks down to 1x1 pixels
+	for (int r = 0; r < 9; r++)
+	{
+
+		
+		int current_block_size = initial_block_size >> r; // Bit shift is faster than pow(2,r)
+		if (current_block_size < 1) break; 
+		if (current_block_size>=global_pixel_size) continue;
+		
+		for(int k = 0; k < DEFAULT_THREAD_COUNT; k++){
+			RenderFractalInternalParams rp;
+			rp.current_block_size=current_block_size;
+			rp.thread=k;
+			//renderFractalInternal(&rp);
+			threadpool_add(thread_pool, renderFractalInternal, &rp);
+
+#ifdef DEBUG_PAUSE_ITERATIONS
+			// Debug: pause and wait for OK button at each iteration
+			char debug_msg[100];
+			sprintf(debug_msg, "Debug: Iteration %d-%d\nPress OK to continue...", r,k);
+			MessageBox(main_window_handle, debug_msg, "Debug Pause", MB_OK);
+#endif
+		}
+	
+		threadpool_wait_all(thread_pool);	
 		drawFractal(main_window_handle);
 		onClearMessageQueue();
 	}
@@ -308,7 +325,7 @@ void expandMemory(int startX, int startY, int newWidth, int newHeight, double sc
             // Bounds checking to prevent buffer overflow
             if (posy >= 0 && posy < WINDOW_HEIGHT && posx >= 0 && posx < WINDOW_WIDTH) {
                 Memory[posy][posx] = oldMemoryToExpand[i*newWidth+j];
-                drawSquare(posx,posy,global_pixel_size,global_pixel_size,(Memory[posy][posx]));
+                drawSquare(posx,posy,global_pixel_size,(Memory[posy][posx]));
             }
         }
     }
