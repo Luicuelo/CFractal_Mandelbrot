@@ -182,7 +182,7 @@ void renderFractal(void)
 		drawFractal(main_window_handle);
 		onClearMessageQueue();
 	}
-	wsprintf(s, "Fractal %d %%", 100);
+	sprintf(s, "Iterations: %d ",  max_iterations);
 	updateStatusBar(s, 0, 0);
 	isImageLoaded = TRUE;
 }
@@ -232,7 +232,7 @@ void onInitializeFractal(void) {
     complex_step_y = ((INITIALFRACTALSIZE) / (double)(WINDOW_HEIGHT));
 
     global_pixel_size = WINDOW_WIDTH;
-    sprintf(s, "Complex Plane: %1.2f/%1.2f:%1.2f/%1.2f ", complex_origin_x, complex_origin_y, complex_origin_x + INITIALFRACTALSIZE, complex_origin_y + INITIALFRACTALSIZE);
+    sprintf(s, "Complex Plane: (%.2f,%.2f) : (%.2f,%.2f)", complex_origin_x, complex_origin_y, complex_origin_x + INITIALFRACTALSIZE, complex_origin_y + INITIALFRACTALSIZE);
     updateStatusBar(s, 1, 0);
 
     onClearMemory();
@@ -313,9 +313,11 @@ void rescaleView(void)
 	max_iterations = (int)(50 + log2(absolute_zoom) * 50);
 	if (max_iterations < 50) max_iterations = 50;
 	if (max_iterations > 2000) max_iterations = 2000;
-	
-	sprintf(s, "Zoom: %.1fx, Iterations: %d", absolute_zoom, max_iterations);
-	updateStatusBar(s, 0, 0);
+	 
+	//sprintf(s, "Zoom: %.1fx, Iterations: %d", zoom_factor, max_iterations);
+	//updateStatusBar(s, 0, 0);
+	sprintf(s, "Complex Plane: (%.2f,%.2f) : (%.2f,%.2f)", complex_origin_x, complex_origin_y, complex_origin_x + complex_step_x*WINDOW_WIDTH, complex_origin_y + complex_step_y*WINDOW_HEIGHT);
+    updateStatusBar(s, 1, 0);
 }
 
 void handleMouseMove(int x, int y, HWND hwnd)
@@ -346,10 +348,10 @@ void handleMouseMove(int x, int y, HWND hwnd)
 		complexStartX = (complex_origin_x + complex_step_x * (double)mouse_down_x);
 		complexStartY = (complex_origin_y + complex_step_y * (double)mouse_down_y);
 
-		complexEndX = (complex_origin_x + complex_step_x * ((double)WINDOW_WIDTH) + complex_origin_x) * 100.0;
+		complexEndX = (complex_origin_x + complex_step_x * (double)mouse_up_x);
 		complexEndY = (complex_origin_y + complex_step_y * (double)mouse_up_y);
 
-		sprintf(s, "Complex Plane: %1.2f/%1.2f:%1.2f/%1.2f ", complexStartX, complexStartY, complexEndX, complexEndY);
+		sprintf(s, "Complex Plane: (%.2f,%.2f) : (%.2f,%.2f)", complexStartX, complexStartY, complexEndX, complexEndY);
 		updateStatusBar(s, 1, 0);
 
 		ReleaseDC(hwnd, hDC);
@@ -370,7 +372,7 @@ char *generateSaveFilename(void)
 
 void onMouseUp(void)
 {
-	if (isImageLoaded)
+	if (isImageLoaded && isButtonPressed)
 	{
 		isButtonPressed = FALSE;
 		rescaleView();
@@ -389,6 +391,21 @@ void onMouseDown(int x, int y)
 	}
 }
 
+// Cancel zoom selection and redraw fractal without selection rectangle
+void onFractalCancelSelection(void) {
+	if (isButtonPressed) {
+		isButtonPressed = FALSE;
+		onRepaint();
+
+		// Restore current view coordinates in status bar
+		sprintf(s, "Complex Plane: (%.2f,%.2f) : (%.2f,%.2f)", 
+			complex_origin_x, complex_origin_y, 
+			complex_origin_x + complex_step_x*WINDOW_WIDTH, 
+			complex_origin_y + complex_step_y*WINDOW_HEIGHT);
+		updateStatusBar(s, 1, 0);
+	}
+}
+
 void animateColorRotation(void)
 {
 	while ((isColorRotationActive) && (main_window_handle != 0))
@@ -398,8 +415,6 @@ void animateColorRotation(void)
 		fillColors();
 		if (main_window_handle != 0)
 			drawFractal(main_window_handle);
-		sprintf(s, "Color: %d ", color_offset);
-		updateStatusBar(s, 0, 0);
 		Sleep(50);
 		onClearMessageQueue();
 	}

@@ -207,13 +207,20 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         case WM_LBUTTONUP:
             onFractalMouseUp();
             break;
+        case WM_RBUTTONDOWN:
+            onFractalCancelSelection();
+            break;
         case WM_MOUSEMOVE:
             onFractalMouseMove(LOWORD(lParam), HIWORD(lParam), hwnd);
+            break;
+        case WM_KEYDOWN:
+            if (wParam == VK_ESCAPE) {
+                onFractalCancelSelection();
+            }
             break;
         case WM_CHAR:
             onFractalKeyPress((BYTE)wParam);
             break;
-        case WM_KEYDOWN:
         case WM_KEYUP:
             break;
         default:

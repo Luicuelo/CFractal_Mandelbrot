@@ -26,6 +26,7 @@ void renderFractal(void);
 void onFractalMouseMove(int X, int Y, HWND hwnd);
 void onFractalMouseDown(int X, int Y);
 void onFractalMouseUp(void);
+void onFractalCancelSelection(void);
 void onFractalKeyPress(BYTE tecla);
 BYTE calculateMandelbrotPoint(int c, int f);
 void onClearMemory(void);
