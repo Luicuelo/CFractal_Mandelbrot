@@ -1,3 +1,8 @@
+/**
+ * @file dibuja.h
+ * @brief Mandelbrot fractal rendering and interaction functions
+ */
+
 #ifndef DIBUJA_H
 #define DIBUJA_H
 
@@ -9,17 +14,17 @@
     #include <stdbool.h>
 #endif
 
-#define ESCAPE_RADIUS_SQUARED 4.0  // 2^2 = 4
+#define MANDELBROT_ESCAPE_RADIUS_SQUARED 4.0  // 2^2 = 4
 bool invertColors;
 typedef struct _renderFractalInternalParams{
   int current_block_size;
-  int thread;
+  int threadId;
 } RenderFractalInternalParams;
 
 typedef struct _point {
   int x;
   int y;
-  int tam;
+  int blockSize;
 } Point;
 
 void renderFractal(void);

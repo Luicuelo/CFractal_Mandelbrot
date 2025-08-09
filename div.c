@@ -172,7 +172,7 @@ void saveFractal(LPCTSTR lpszFileName, BOOL bOverwriteExisting) {
 
 
 // Draw the complete fractal image to the window
-void drawFractal(HWND hWnd) {
+void drawFractalBitmap(HWND hWnd) {
     HDC compat_dc = NULL;
     HDC hDC = GetDC(hWnd);
     HBITMAP dib = NULL;

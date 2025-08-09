@@ -9,7 +9,7 @@
 #endif
 
 void createDIB(HWND);
-void drawFractal(HWND hWnd);
+void drawFractalBitmap(HWND hWnd);
 void saveFractal(LPCTSTR lpszFileName, BOOL bOverwriteExisting);
 void fillColors(void);
 void drawSquare(int x, int y, int tam, BYTE color);
