@@ -29,7 +29,7 @@ void DebugPrint(const char *format, ...) {
 int getOptimalThreadCount(void) {
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
-    int cores = (int)sysinfo.dwNumberOfProcessors;
+    int cores = (int)sysinfo.dwNumberOfProcessors-2;
     
     if (cores <= 0) return 4;  // Fallback for detection failure
     return (cores > 16) ? 16 : cores;  // Cap at 16 to avoid thread overhead

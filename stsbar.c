@@ -31,7 +31,7 @@ BOOL createSBar(HWND hwndParent, char *initialText, int nrOfParts) {
         initializeStatusBar(hwndParent, nrOfParts);
         updateStatusBar(initialText, 0, 0);
         if (main_window_handle != 0)
-            drawFractal(main_window_handle);
+            drawFractalBitmap(main_window_handle);
         return TRUE;
     }
 

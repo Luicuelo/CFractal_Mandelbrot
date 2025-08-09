@@ -82,6 +82,7 @@ struct threadpool_t {
   int head;
   int tail;
   int count;
+  int active_threads;
   int shutdown;
   int started;
 };
@@ -112,6 +113,7 @@ threadpool_t *threadpool_create(int thread_count, int queue_size, int flags)
     pool->thread_count = 0;
     pool->queue_size = queue_size;
     pool->head = pool->tail = pool->count = 0;
+    pool->active_threads = 0;
     pool->shutdown = pool->started = 0;
   
 
@@ -179,7 +181,7 @@ int threadpool_add(threadpool_t *pool, void (*function)(void *),
 
         /* Add task to queue */
         pool->queue[pool->tail].function = function;
-        memcpy(&pool->queue[pool->tail].argument, argument, sizeof(Point));
+        memcpy(&pool->queue[pool->tail].argument, argument, sizeof(RenderFractalInternalParams));
         pool->tail = next;
         pool->count += 1;
 
@@ -293,17 +295,18 @@ static int threadpool_thread(void *threadpool)
 
         if((pool->shutdown == immediate_shutdown) ||
            ((pool->shutdown == graceful_shutdown) &&
-            (pool->count == 0))) {
+            (pool->count == 0 && pool->active_threads == 0))) {
             break;
         }
 
         /* Grab our task */
         task.function = pool->queue[pool->head].function;
-        task.argument = pool->queue[pool->head].argument; // Copia directa del struct Point
+        task.argument = pool->queue[pool->head].argument; // Copia directa del struct
 
         //DebugPrint(" Arranca Hilo %d, hay tareas %d\n",(pool->head + 1) % pool->queue_size,pool->count-1);
         pool->head = (pool->head + 1) % pool->queue_size;
         pool->count -= 1;
+        pool->active_threads++;
         
         cnd_signal(&(pool->queue_notify));
         
@@ -318,20 +321,19 @@ static int threadpool_thread(void *threadpool)
         /* Lock the mutex before accessing the task counter and condition variable */
         mtx_lock(&(pool->lock));
 
+        pool->active_threads--;
         //DebugPrint(" i:%d , j:%d , tam:%d\n",((punto*)(task.argument))->i,((punto*)(task.argument))->j,((punto*)(task.argument))->tam);    
         /* If all tasks are done, signal the condition variable */
-        if(pool->count == 0) {
+        if(pool->count == 0 && pool->active_threads == 0) {
             cnd_signal(&(pool->all_tasks_done));
         }        
         /* Unlock the mutex */
         mtx_unlock(&(pool->lock));
     }
 
-    // No cleanup needed for Point struct
-    
     pool->started--;
 
-    if(pool->count == 0) {
+    if(pool->count == 0 && pool->active_threads == 0) {
         cnd_signal(&(pool->all_tasks_done));
     }
 
@@ -342,7 +344,7 @@ static int threadpool_thread(void *threadpool)
 /* En el hilo principal, espera a que todas las tareas se hayan completado */
 void threadpool_wait_all(threadpool_t *pool) {
     mtx_lock(&(pool->lock));
-    if (pool->count>0) {
+    while (pool->count > 0 || pool->active_threads > 0) {
         cnd_wait(&(pool->all_tasks_done), &(pool->lock));
     }
     mtx_unlock(&(pool->lock));

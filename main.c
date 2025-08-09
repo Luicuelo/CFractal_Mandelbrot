@@ -58,7 +58,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
                0,
                szClassName,
                "Fractal",
-               WS_EX_DLGMODALFRAME,
+               WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
                CW_USEDEFAULT,
                CW_USEDEFAULT,
                (r.right-r.left),
@@ -106,14 +106,17 @@ void onClearMessageQueue(void) {
     
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
         switch (msg.message) {
-            case WM_QUIT:
+            case WM_CLOSE:
+                DestroyWindow(currentHandle);
+                break;
             case WM_DESTROY:
-                main_window_handle = NULL;
-                return;
+            case WM_QUIT:
+                main_window_handle = 0;
+                PostQuitMessage(0);            
+                break;
             case WM_LBUTTONDOWN:
             case WM_LBUTTONUP:
             case WM_MOUSEMOVE:
-                break;
             default:
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
@@ -176,10 +179,10 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
     switch (message)
     {
-        case WM_DESTROY:
-            main_window_handle = 0;
-            PostQuitMessage(0);            
+        case WM_CLOSE:
+            DestroyWindow(hwnd);
             break;
+        case WM_DESTROY:
         case WM_QUIT:
             main_window_handle = 0;
             PostQuitMessage(0);            
@@ -198,7 +201,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
             break;
         case WM_PAINT:
             BeginPaint(hwnd, &ps);
-            drawFractal(hwnd);
+            drawFractalBitmap(hwnd);
             EndPaint(hwnd, &ps);
             break;
         case WM_LBUTTONDOWN:
