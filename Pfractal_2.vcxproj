@@ -50,7 +50,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -121,17 +121,17 @@
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>user32.lib;Gdi32.lib;Comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="complejos.h" />
-    <ClInclude Include="constantes.h" />
-    <ClInclude Include="dibuja.h" />
-    <ClInclude Include="div.h" />
+    <ClInclude Include="complex.h" />
+    <ClInclude Include="constants.h" />
+    <ClInclude Include="dib.h" />
+    <ClInclude Include="fractal_calc.h" />
     <ClInclude Include="main.h" />
-    <ClInclude Include="Pfractal.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="source\tinycthread.h" />
     <ClInclude Include="stdafx.h" />
@@ -141,8 +141,8 @@
     <ClInclude Include="wres.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dibuja.c" />
-    <ClCompile Include="div.c" />
+    <ClCompile Include="dib.c" />
+    <ClCompile Include="fractal_calc.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="source\tinycthread.c" />
     <ClCompile Include="stsbar.c" />

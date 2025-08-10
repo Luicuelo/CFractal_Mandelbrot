@@ -1,5 +1,5 @@
-#include "div.h"
-#include "dibuja.h"
+#include "dib.h"
+#include "fractal_calc.h"
 #include "wres.h"
 #include "stsbar.h"
 #include "main.h"
@@ -75,7 +75,7 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     }
 
     main_window_handle = hwnd;
-    createSBar(hwnd, "Started", 2);
+    createStatusBar(hwnd, "Started", 2);
     ShowWindow(hwnd, nFunsterStil);
     UpdateWindow(hwnd);
     createDIB(hwnd);

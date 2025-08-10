@@ -1,14 +1,16 @@
+
 /**
- * @file dibuja.h
+ * @file fractal_calc.h
  * @brief Mandelbrot fractal rendering and interaction functions
  */
 
-#ifndef DIBUJA_H
-#define DIBUJA_H
+#ifndef FRACTAL_CALC_H
+#define FRACTAL_CALC_H
+
 
 #include <windows.h>
-#include "constantes.h"
-#include "complejos.h"
+#include "constants.h"
+#include "complex.h"
 
 #ifndef __cplusplus
     #include <stdbool.h>
@@ -37,12 +39,12 @@ BYTE calculateMandelbrotPoint(int c, int f);
 void onClearMemory(void);
 void onInitializeFractal(void);
 void onRepaint(void);
-
+void automaticZoom(void);
 void expandMemory(int startX, int startY, int newWidth, int newHeight, double scaleX, double scaleY);
 void calculateAndDraw(Point *p);
 void calculateSquarePoint(Point *p);
 void calculatePixelPoint(Point *p);
-void rescaleView(void);
+void rescaleView(int pmouse_down_x, int pmouse_down_y, int pmouse_up_x, int pmouse_up_y);
 void handleMouseMove(int x, int y, HWND hwnd);
 void onMouseUp(void);
 void onMouseDown(int x, int y);
@@ -54,7 +56,7 @@ void onSaveFractal(LPCTSTR lpszFileName, BOOL bOverwriteExisting);
 
 #ifdef useUniformBlockOptimization
 void fillMemorySquare(int x, int y, int w, int h, BYTE value);
-bool areCornersUniformAndCalculated(int a, int b, int c, int d);
+void optimizeWhenCornersEqual(int xc, int yc, int blockSize, BYTE current);
 #endif
 
-#endif // DIBUJA_H
+#endif // FRACTAL_CALC_H

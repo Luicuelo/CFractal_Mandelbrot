@@ -31,7 +31,7 @@
 
 #include "source/tinycthread.h"
 #include <string.h>
-#include "dibuja.h"
+#include "fractal_calc.h"
 
 #ifdef __cplusplus
 extern "C" {

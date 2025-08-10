@@ -33,25 +33,22 @@
     <ClInclude Include="resource.h">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
-    <ClInclude Include="Pfractal.h">
-      <Filter>Archivos de encabezado</Filter>
-    </ClInclude>
     <ClInclude Include="main.h">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
-    <ClInclude Include="div.h">
-      <Filter>Archivos de encabezado</Filter>
-    </ClInclude>
-    <ClInclude Include="dibuja.h">
-      <Filter>Archivos de encabezado</Filter>
-    </ClInclude>
-    <ClInclude Include="constantes.h">
-      <Filter>Archivos de encabezado</Filter>
-    </ClInclude>
-    <ClInclude Include="complejos.h">
+    <ClInclude Include="dib.h">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
     <ClInclude Include="source\tinycthread.h">
+      <Filter>Archivos de encabezado</Filter>
+    </ClInclude>
+    <ClInclude Include="complex.h">
+      <Filter>Archivos de encabezado</Filter>
+    </ClInclude>
+    <ClInclude Include="fractal_calc.h">
+      <Filter>Archivos de encabezado</Filter>
+    </ClInclude>
+    <ClInclude Include="constants.h">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
   </ItemGroup>
@@ -68,13 +65,13 @@
     <ClCompile Include="main.c">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
-    <ClCompile Include="div.c">
-      <Filter>Archivos de origen</Filter>
-    </ClCompile>
-    <ClCompile Include="dibuja.c">
+    <ClCompile Include="dib.c">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
     <ClCompile Include="source\tinycthread.c">
+      <Filter>Archivos de origen</Filter>
+    </ClCompile>
+    <ClCompile Include="fractal_calc.c">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,4 +1,4 @@
-#include "div.h"
+#include "dib.h"
 #ifndef __cplusplus
     #include <stdbool.h>
 #endif

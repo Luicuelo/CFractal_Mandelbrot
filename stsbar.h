@@ -1,4 +1,4 @@
-#include "constantes.h"
+#include "constants.h"
 #include <windows.h>
 #include <commctrl.h>
 #include <string.h>
@@ -7,7 +7,7 @@
 
 HWND hWndStatusbar;
 
-BOOL createSBar(HWND hwndParent, char *initialText, int nrOfParts);
-void initializeStatusBar(HWND hwndParent, int nrOfParts);
-void updateStatusBar(LPSTR lpszStatusString, WORD partNumber, WORD displayFlags);
+BOOL createStatusBar(HWND parentWindow, char *initialText, int numberOfParts);
+void initializeStatusBar(HWND parentWindow, int numberOfParts);
+void updateStatusBar(LPSTR statusText, WORD partNumber, WORD displayFlags);
 

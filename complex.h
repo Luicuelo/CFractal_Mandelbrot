@@ -1,5 +1,5 @@
-#ifndef COMPLEJOS_H
-#define COMPLEJOS_H
+#ifndef COMPLEX_H
+#define COMPLEX_H
 
 #include <math.h>
 
@@ -18,4 +18,4 @@ typedef struct _comp
 #define mdr(a) abs(a.x+a.y)
 #define diff(a,b,aux) aux.x=a.x-b.x;aux.y=a.y-b.y;
 
-#endif // COMPLEJOS_H
+#endif // COMPLEX_H

@@ -1,34 +1,34 @@
-#include "constantes.h"
+#include "constants.h"
 #include "stsbar.h"
-#include "main.h" // Incluir el encabezado donde se declara main_window_handle
+#include "main.h" // Include the header where main_window_handle is declared
 
 #ifndef __cplusplus
     #include <stdbool.h>
 #endif
 
-// Función para crear la barra de estado.
-BOOL createSBar(HWND hwndParent, char *initialText, int nrOfParts) {
+// Function to create the status bar.
+BOOL createStatusBar(HWND parentWindow, char *initialText, int numberOfParts) {
     RECT parentRect;
     RECT statusBarRect;
     int parentWidth;
     int parentHeight;
     unsigned int flags = SWP_NOOWNERZORDER;
 
-    // Crear la barra de estado.
+    // Create the status bar.
     hWndStatusbar = CreateStatusWindow(WS_CHILD | WS_VISIBLE | WS_BORDER,
                                        initialText,
-                                       hwndParent,
+                                       parentWindow,
                                        IDM_STATUSBAR);
 
-    // Ajustar el tamaño de la ventana principal para acomodar la barra de estado.
-    GetWindowRect(hwndParent, &parentRect);
+    // Adjust the main window size to accommodate the status bar.
+    GetWindowRect(parentWindow, &parentRect);
     GetWindowRect(hWndStatusbar, &statusBarRect);
     parentWidth = parentRect.right - parentRect.left;
     parentHeight = (parentRect.bottom - parentRect.top) + (statusBarRect.bottom - statusBarRect.top);
-    SetWindowPos(hwndParent, 0, 0, 0, parentWidth, parentHeight, flags);
+    SetWindowPos(parentWindow, 0, 0, 0, parentWidth, parentHeight, flags);
 
     if (hWndStatusbar) {
-        initializeStatusBar(hwndParent, nrOfParts);
+        initializeStatusBar(parentWindow, numberOfParts);
         updateStatusBar(initialText, 0, 0);
         if (main_window_handle != 0)
             drawFractalBitmap(main_window_handle);
@@ -38,18 +38,18 @@ BOOL createSBar(HWND hwndParent, char *initialText, int nrOfParts) {
     return FALSE;
 }
 
-// Función para inicializar la barra de estado con múltiples partes.
-void initializeStatusBar(HWND hwndParent, int nrOfParts) {
-    int partWidths[40]; // Array para definir el ancho de las partes.
+// Function to initialize the status bar with multiple parts.
+void initializeStatusBar(HWND parentWindow, int numberOfParts) {
+    int partWidths[40]; // Array to define the width of the parts.
     HDC deviceContext;
 
     // Validate input parameters
-    if (hwndParent == NULL || nrOfParts <= 0 || nrOfParts > 40) {
+    if (parentWindow == NULL || numberOfParts <= 0 || numberOfParts > 40) {
         return;
     }
 
-    // Obtener el contexto del dispositivo de la ventana principal.
-    deviceContext = GetDC(hwndParent);
+    // Get the device context of the main window.
+    deviceContext = GetDC(parentWindow);
     if (deviceContext == NULL) {
         return;
     }
@@ -57,23 +57,23 @@ void initializeStatusBar(HWND hwndParent, int nrOfParts) {
     // Initialize array to prevent uninitialized access
     memset(partWidths, 0, sizeof(partWidths));
 
-    // Configurar los anchos de las partes de la barra de estado.
-    if (nrOfParts >= 1) partWidths[0] = WINDOW_WIDTH / 2;
-    if (nrOfParts >= 2) partWidths[1] = WINDOW_WIDTH;
+    // Set the widths of the status bar parts.
+    if (numberOfParts >= 1) partWidths[0] = WINDOW_WIDTH / 2;
+    if (numberOfParts >= 2) partWidths[1] = WINDOW_WIDTH;
 
-    // Liberar el contexto del dispositivo.
-    ReleaseDC(hwndParent, deviceContext);
+    // Release the device context.
+    ReleaseDC(parentWindow, deviceContext);
 
-    // Configurar las partes de la barra de estado.
+    // Set the parts of the status bar.
     if (hWndStatusbar != NULL) {
         SendMessage(hWndStatusbar,
                     SB_SETPARTS,
-                    nrOfParts,
+                    numberOfParts,
                     (LPARAM)(LPINT)partWidths);
     }
 }
 
-// Función para actualizar el texto de la barra de estado.
+// Function to update the status bar text.
 void updateStatusBar(LPSTR statusText, WORD partNumber, WORD displayFlags) {
     SendMessage(hWndStatusbar,
                 SB_SETTEXT,
