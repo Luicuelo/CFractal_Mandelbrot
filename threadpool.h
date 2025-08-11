@@ -30,8 +30,8 @@
 #define _THREADPOOL_H_
 
 #include "source/tinycthread.h"
-#include <string.h>
-#include "fractal_calc.h"
+#include "common.h"
+#include "types.h"
 
 #ifdef __cplusplus
 extern "C" {

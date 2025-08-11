@@ -31,10 +31,7 @@
  * @brief Threadpool implementation file
  */
 
-#include <stdlib.h>
 #include "threadpool.h"
-#include "utils.h"
-
 
 
 typedef enum {

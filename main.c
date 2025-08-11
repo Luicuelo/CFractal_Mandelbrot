@@ -1,13 +1,11 @@
-#include "dib.h"
-#include "fractal_calc.h"
-#include "wres.h"
-#include "stsbar.h"
 #include "main.h"
+#include "fractal_calc.h"
+#include "dib.h"
+#include "stsbar.h"
 #include "threadpool.h"
+#include "wres.h"
 
-#ifndef __cplusplus
-    #include <stdbool.h>
-#endif
+
 
 struct threadpool_t *thread_pool;
 
@@ -79,7 +77,8 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
     ShowWindow(hwnd, nFunsterStil);
     UpdateWindow(hwnd);
     createDIB(hwnd);
-    thread_pool = threadpool_create(DEFAULT_THREAD_COUNT, DEFAULT_QUEUE_SIZE,0);
+    int threadCount = getOptimalThreadCount();
+    thread_pool = threadpool_create(threadCount, DEFAULT_QUEUE_SIZE,0);
     onInitializeFractal();
 
     // Main message loop
@@ -232,4 +231,3 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
     return 0;
 }
-#include "utils.h"
