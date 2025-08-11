@@ -1,4 +1,6 @@
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include "common.h"
 
 #define	m_nuevo	10
 #define	m_guardar	20

@@ -1,10 +1,4 @@
-#include "constants.h"
 #include "stsbar.h"
-#include "main.h" // Include the header where main_window_handle is declared
-
-#ifndef __cplusplus
-    #include <stdbool.h>
-#endif
 
 // Function to create the status bar.
 BOOL createStatusBar(HWND parentWindow, char *initialText, int numberOfParts) {
@@ -30,8 +24,6 @@ BOOL createStatusBar(HWND parentWindow, char *initialText, int numberOfParts) {
     if (hWndStatusbar) {
         initializeStatusBar(parentWindow, numberOfParts);
         updateStatusBar(initialText, 0, 0);
-        if (main_window_handle != 0)
-            drawFractalBitmap(main_window_handle);
         return TRUE;
     }
 

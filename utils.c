@@ -21,16 +21,3 @@ void DebugPrint(const char *format, ...) {
         OutputDebugString(debug_message_buffer);
     }
 }
-
-/**
- * Detects optimal thread count for CPU-intensive tasks
- * @return Number of CPU cores, capped at 16 threads maximum
- */
-int getOptimalThreadCount(void) {
-    SYSTEM_INFO sysinfo;
-    GetSystemInfo(&sysinfo);
-    int cores = (int)sysinfo.dwNumberOfProcessors-2;
-    
-    if (cores <= 0) return 4;  // Fallback for detection failure
-    return (cores > 16) ? 16 : cores;  // Cap at 16 to avoid thread overhead
-}

@@ -1,3 +1,6 @@
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
 #define WINDOW_WIDTH 1000
 #define WINDOW_HEIGHT 1000
 #define AUTOMATIC_ZOOM_PIXELS 40
@@ -8,7 +11,6 @@
 #define COLOR_COUNT 255
 #define DEFAULT_MAXITERATIONS 50
 
-#define DEFAULT_THREAD_COUNT getOptimalThreadCount()
 #define DEFAULT_QUEUE_SIZE 100
 
 //#define DEBUG_PAUSE_ITERATIONS // Debug symbol for conditional compilation
@@ -21,11 +23,10 @@
   #define  CONVERGENCE_THRESHOLD 12.0
 #endif
 
-/*
-#ifndef _bool
-    #define _bool
-    typedef unsigned char bool;
-    #define true 255
-    #define false 0
-#endif
-*/
+/**
+ * Detects optimal thread count for CPU-intensive tasks
+ * @return Number of CPU cores, capped at 16 threads maximum
+ */
+
+
+#endif // CONSTANTS_H

@@ -1,7 +1,7 @@
-#include "constants.h"
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include "common.h"
 #include <commctrl.h>
-#include <string.h>
 
 #define IDM_STATUSBAR 3000
 

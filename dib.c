@@ -1,10 +1,4 @@
 #include "dib.h"
-#ifndef __cplusplus
-    #include <stdbool.h>
-#endif
-#include <math.h>
-#include <stdio.h>
-#include "stsbar.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -51,7 +45,7 @@ void drawSquare(int x, int y, int tam, BYTE iterations){
     }
 }
 
-void color(int i,BYTE r,BYTE g, BYTE b)
+static void color(int i,BYTE r,BYTE g, BYTE b)
 {
     bmi.bmiColors[i].rgbRed = r;
     bmi.bmiColors[i].rgbGreen = g;
