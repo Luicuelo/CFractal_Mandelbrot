@@ -20,6 +20,7 @@
 
 #define MANDELBROT_ESCAPE_RADIUS_SQUARED 4.0  // 2^2 = 4
 bool invertColors;
+bool juliaMode;
 // Common types moved to types.h to avoid circular dependencies
 
 // Public interface functions
