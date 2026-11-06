@@ -1,5 +1,7 @@
 #include "stsbar.h"
 
+HWND hWndStatusbar = NULL;
+
 // Function to create the status bar.
 BOOL createStatusBar(HWND parentWindow, char *initialText, int numberOfParts) {
     RECT parentRect;
@@ -67,6 +69,9 @@ void initializeStatusBar(HWND parentWindow, int numberOfParts) {
 
 // Function to update the status bar text.
 void updateStatusBar(LPSTR statusText, WORD partNumber, WORD displayFlags) {
+    if (hWndStatusbar == NULL)
+        return;
+
     SendMessage(hWndStatusbar,
                 SB_SETTEXT,
                 partNumber | displayFlags,

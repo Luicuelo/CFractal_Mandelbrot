@@ -4,9 +4,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-int max_iterations;
-bool invertColors;
-
 typedef struct tagBITMAPINFO_E
 {
     BITMAPINFOHEADER bmiHeader;
@@ -17,29 +14,37 @@ BITMAPINFO_E;
 BITMAPINFO_E  bmi;
 BYTE Pixels[WINDOW_HEIGHT][WINDOW_WIDTH];
 
-int color_offset;
-int temp_rect;
-
 // Draw a filled square/rectangle.
-void drawSquare(int x, int y, int tam, BYTE iterations){
+void drawSquare(int x, int y, int tam, uint32_t iterations){
 
     BYTE color;
-	if(iterations==MANDELBROTPOINT_VALUE) color= (COLOR_COUNT-1); //point in set.
-	else color = (BYTE)((double)iterations * (COLOR_COUNT-1) / (double)max_iterations);	
-    // Scale color based on max_iterations for better distribution
 
-    if(tam==1){
+    if (iterations == ITERATION_UNKNOWN)
+        return;
+
+    if (iterations == MANDELBROTPOINT_VALUE)
+        color = (COLOR_COUNT - 1); // point in set
+    else if (max_iterations > 0)
+        color = (BYTE)((double)iterations * (COLOR_COUNT - 1) / (double)max_iterations);
+    else
+        color = 0;
+
+    if (tam == 1) {
         if (x >= 0 && x < WINDOW_WIDTH && y >= 0 && y < WINDOW_HEIGHT) {
             Pixels[y][x] = color;
         }
     }
-    else{
-        int w=tam;
-        int h=tam;
+    else {
+        int w = tam;
+        int h = tam;
+
         if (x < 0) x = 0;
         if (y < 0) y = 0;
-        if (x + w > WINDOW_WIDTH - 1) w = WINDOW_WIDTH - 1 - x;
-        if (y + h > WINDOW_HEIGHT - 1) h = WINDOW_HEIGHT - 1 - y;
+        if (x >= WINDOW_WIDTH || y >= WINDOW_HEIGHT) return;
+
+        if (x + w > WINDOW_WIDTH) w = WINDOW_WIDTH - x;
+        if (y + h > WINDOW_HEIGHT) h = WINDOW_HEIGHT - y;
+
         for (int a = 0; a < h; a++)
             memset(&Pixels[y + a][x], color, w);
     }
@@ -137,50 +142,96 @@ void createDIB(HWND hwndParent)
 // Save the current fractal image as a BMP file
 void saveFractal(LPCTSTR lpszFileName, BOOL bOverwriteExisting) {
     DWORD bytesWritten = 0;
-    BOOL writeResult = FALSE;
+    BOOL writeResult = TRUE;
 
     if (lpszFileName == NULL) return;
 
     HANDLE hFile = CreateFile(lpszFileName, GENERIC_WRITE, FILE_SHARE_READ, NULL, bOverwriteExisting ? CREATE_ALWAYS : CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (hFile != INVALID_HANDLE_VALUE) {
-        BITMAPFILEHEADER bmfh;
-        bmfh.bfType = MAKEWORD('B', 'M');
-        bmfh.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + (bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD)) + WINDOW_WIDTH * WINDOW_HEIGHT;
-        bmfh.bfReserved1 = 0;
-        bmfh.bfReserved2 = 0;
-        bmfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + (bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD));
+    if (hFile == INVALID_HANDLE_VALUE) {
+        MessageBoxA(NULL, "No se pudo crear el archivo BMP.", "Error al guardar", MB_OK | MB_ICONERROR);
+        return;
+    }
 
-        writeResult = WriteFile(hFile, &bmfh, sizeof(BITMAPFILEHEADER), &bytesWritten, NULL);
-        if (writeResult && bytesWritten == sizeof(BITMAPFILEHEADER)) {
-            writeResult = WriteFile(hFile, &(bmi.bmiHeader), sizeof(BITMAPINFOHEADER), &bytesWritten, NULL);
+    // BMP rows are padded to a multiple of 4 bytes.
+    const DWORD rowBytes = (DWORD)WINDOW_WIDTH;
+    const DWORD padding = (4 - (rowBytes % 4)) % 4;
+    const DWORD imageSize = (rowBytes + padding) * (DWORD)WINDOW_HEIGHT;
+
+    BITMAPINFOHEADER header = bmi.bmiHeader;
+    header.biSizeImage = imageSize;
+
+    const DWORD paletteBytes = header.biClrUsed * (DWORD)sizeof(RGBQUAD);
+
+    BITMAPFILEHEADER bmfh = {0};
+    bmfh.bfType = MAKEWORD('B', 'M');
+    bmfh.bfSize = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER) + paletteBytes + imageSize;
+    bmfh.bfReserved1 = 0;
+    bmfh.bfReserved2 = 0;
+    bmfh.bfOffBits = (DWORD)sizeof(BITMAPFILEHEADER) + (DWORD)sizeof(BITMAPINFOHEADER) + paletteBytes;
+
+    writeResult = WriteFile(hFile, &bmfh, sizeof(BITMAPFILEHEADER), &bytesWritten, NULL);
+    if (writeResult && bytesWritten == sizeof(BITMAPFILEHEADER)) {
+        writeResult = WriteFile(hFile, &header, sizeof(BITMAPINFOHEADER), &bytesWritten, NULL);
+    }
+    if (writeResult && bytesWritten == sizeof(BITMAPINFOHEADER)) {
+        writeResult = WriteFile(hFile, bmi.bmiColors, paletteBytes, &bytesWritten, NULL);
+    }
+    if (writeResult && bytesWritten == paletteBytes) {
+        BYTE rowPadding[3] = {0, 0, 0};
+        for (int y = 0; y < WINDOW_HEIGHT && writeResult; y++) {
+            writeResult = WriteFile(hFile, Pixels[y], rowBytes, &bytesWritten, NULL);
+            if (writeResult && bytesWritten != rowBytes) {
+                writeResult = FALSE;
+            }
+            if (writeResult && padding > 0) {
+                writeResult = WriteFile(hFile, rowPadding, padding, &bytesWritten, NULL);
+                if (writeResult && bytesWritten != padding) {
+                    writeResult = FALSE;
+                }
+            }
         }
-        if (writeResult && bytesWritten == sizeof(BITMAPINFOHEADER)) {
-            writeResult = WriteFile(hFile, bmi.bmiColors, bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD), &bytesWritten, NULL);
-        }
-        if (writeResult && bytesWritten == (bmi.bmiHeader.biClrUsed * sizeof(RGBQUAD))) {
-            WriteFile(hFile, Pixels, WINDOW_WIDTH * WINDOW_HEIGHT, &bytesWritten, NULL);
-        }
-        CloseHandle(hFile);
+    }
+
+    CloseHandle(hFile);
+
+    if (!writeResult) {
+        MessageBoxA(NULL, "No se pudo escribir el archivo BMP.", "Error al guardar", MB_OK | MB_ICONERROR);
     }
 }
 
 
 // Draw the complete fractal image to the window
 void drawFractalBitmap(HWND hWnd) {
-    HDC compat_dc = NULL;
+    if (hWnd == NULL)
+        return;
+
     HDC hDC = GetDC(hWnd);
-    HBITMAP dib = NULL;
-    compat_dc = CreateCompatibleDC(hDC); // Create a compatible device context.
+    if (hDC == NULL)
+        return;
 
-    dib = CreateDIBitmap(hDC,
-                         &(bmi.bmiHeader), CBM_INIT, Pixels,
-                         (BITMAPINFO*)&bmi, DIB_RGB_COLORS);
-    SelectObject(compat_dc, dib); // Select the DIB into the compatible DC.
+    HDC compat_dc = CreateCompatibleDC(hDC); // Create a compatible device context.
+    if (compat_dc == NULL) {
+        ReleaseDC(hWnd, hDC);
+        return;
+    }
 
-    BitBlt(hDC, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, compat_dc, 0, 0, SRCCOPY);
+    HBITMAP dib = CreateDIBitmap(hDC,
+                                 &(bmi.bmiHeader), CBM_INIT, Pixels,
+                                 (BITMAPINFO*)&bmi, DIB_RGB_COLORS);
+    if (dib == NULL) {
+        DeleteDC(compat_dc);
+        ReleaseDC(hWnd, hDC);
+        return;
+    }
 
-    DeleteDC(compat_dc); // Destroy the compatible DC.
+    HGDIOBJ oldBitmap = SelectObject(compat_dc, dib); // Select the DIB into the compatible DC.
+    if (oldBitmap != NULL && oldBitmap != HGDI_ERROR) {
+        BitBlt(hDC, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, compat_dc, 0, 0, SRCCOPY);
+        SelectObject(compat_dc, oldBitmap);
+    }
+
     DeleteObject(dib);   // Destroy the Bitmap.
+    DeleteDC(compat_dc); // Destroy the compatible DC.
     ReleaseDC(hWnd, hDC);
 }
 

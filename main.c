@@ -7,11 +7,11 @@
 
 
 
-struct threadpool_t *thread_pool;
+struct threadpool_t *thread_pool = NULL;
 
-HWND main_window_handle;
+HWND main_window_handle = NULL;
 LRESULT CALLBACK WindowProcedure (HWND, UINT, WPARAM, LPARAM);
-HINSTANCE instancia;
+HINSTANCE instancia = NULL;
 
 char szClassName[] = "WindowsApp";
 
@@ -26,14 +26,24 @@ int WINAPI WinMain(
     WNDCLASSEX wincl = {0};
 
     instancia = hThisInstance;
+
+    INITCOMMONCONTROLSEX icc = {0};
+    icc.dwSize = sizeof(icc);
+    icc.dwICC = ICC_BAR_CLASSES;
+    InitCommonControlsEx(&icc);
+
     wincl.hInstance = hThisInstance;
     wincl.lpszClassName = szClassName;
     wincl.lpfnWndProc = WindowProcedure;
     wincl.style = CS_HREDRAW|CS_VREDRAW |CS_DBLCLKS;
     wincl.cbSize = sizeof (WNDCLASSEX);
 
-    wincl.hIcon = LoadIcon (NULL, IDI_APPLICATION);
-    wincl.hIconSm = LoadIcon (NULL, IDI_APPLICATION);
+    wincl.hIcon = LoadIcon(instancia, MAKEINTRESOURCE(IDI_PFRACTAL));
+    wincl.hIconSm = LoadIcon(instancia, MAKEINTRESOURCE(IDI_SMALL));
+    if (wincl.hIcon == NULL)
+        wincl.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    if (wincl.hIconSm == NULL)
+        wincl.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
     wincl.hCursor = LoadCursor (NULL, IDC_ARROW);
     wincl.lpszMenuName = MAKEINTRESOURCE(ImenuP);
     wincl.cbClsExtra = 0;
@@ -79,6 +89,11 @@ int WINAPI WinMain(
     createDIB(hwnd);
     int threadCount = getOptimalThreadCount();
     thread_pool = threadpool_create(threadCount, DEFAULT_QUEUE_SIZE,0);
+    if (thread_pool == NULL) {
+        MessageBox(NULL, "Failed to create thread pool", "Error", MB_OK | MB_ICONERROR);
+        DestroyWindow(hwnd);
+        return -1;
+    }
     onInitializeFractal();
 
     // Main message loop
@@ -128,7 +143,8 @@ void onClearMessageQueue(void) {
 }
 
 void onRepaint(void) {
-    InvalidateRect(main_window_handle, NULL, FALSE);
+    if (main_window_handle != NULL)
+        InvalidateRect(main_window_handle, NULL, FALSE);
 }
 
 static BOOL CALLBACK DialogFunc(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -214,6 +230,9 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
             break;
         case WM_MOUSEMOVE:
             onFractalMouseMove(LOWORD(lParam), HIWORD(lParam), hwnd);
+            break;
+        case WM_CAPTURECHANGED:
+            onFractalCancelSelection();
             break;
         case WM_KEYDOWN:
             if (wParam == VK_ESCAPE) {

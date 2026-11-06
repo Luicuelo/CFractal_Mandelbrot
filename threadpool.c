@@ -162,34 +162,30 @@ int threadpool_add(threadpool_t *pool, void (*function)(void *),
         return threadpool_lock_failure;
     }
 
+    /* Wait until there is room, re-checking on spurious wakeups. */
+    while((pool->count + 1) >= pool->queue_size && !pool->shutdown) {
+        cnd_wait(&(pool->queue_notify), &(pool->lock));
+    }
+
+    if(pool->shutdown) {
+        mtx_unlock(&(pool->lock));
+        return threadpool_shutdown;
+    }
+
+    /* Compute next only after the queue has room. */
     next = (pool->tail + 1) % pool->queue_size;
 
-    do {
-        /* Are we shutting down ? */
-        if(pool->shutdown) {
-            err = threadpool_shutdown;
-            break;
-        }
+    /* Add task to queue */
+    pool->queue[pool->tail].function = function;
+    memcpy(&pool->queue[pool->tail].argument, argument, sizeof(RenderFractalInternalParams));
+    pool->tail = next;
+    pool->count += 1;
 
-        /* Are we full ? */
-        if((pool->count+1) >= pool->queue_size) {
-            cnd_wait(&(pool->queue_notify), &(pool->lock));
-        }
+    if(cnd_signal(&(pool->notify)) != thrd_success) {
+        err = threadpool_lock_failure;
+    }
 
-        /* Add task to queue */
-        pool->queue[pool->tail].function = function;
-        memcpy(&pool->queue[pool->tail].argument, argument, sizeof(RenderFractalInternalParams));
-        pool->tail = next;
-        pool->count += 1;
-
-        /* pthread_cond_broadcast */
-        if(cnd_signal(&(pool->notify)) != thrd_success) {
-            err = threadpool_lock_failure;
-            break;
-        }
-    } while(0);
-
-    if(mtx_unlock(&pool->lock) != thrd_success) {
+    if(mtx_unlock(&(pool->lock)) != thrd_success) {
         err = threadpool_lock_failure;
     }
 

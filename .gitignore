@@ -1,0 +1,24 @@
+# Build outputs
+*.exe
+*.pdb
+*.ilk
+*.obj
+*.res
+*.tlog
+*.idb
+*.aps
+*.lastbuildstate
+
+# Visual Studio state
+.vs/
+/Debug/
+/Release/
+/x64/
+/Pfractal_2/
+
+# Build intermediate directories (case variants used by different tools)
+/intermediate/
+/Intermediate/
+
+# Generated fractal snapshots (keep LuisCG.bmp, used by the About dialog)
+/bmp/Fractal*.bmp

@@ -7,6 +7,10 @@
 #include <string.h>
 #include <math.h>
 
+#ifndef RC_INVOKED
+    #include <stdint.h>
+#endif
+
 #ifndef __cplusplus
     #include <stdbool.h>
 #endif

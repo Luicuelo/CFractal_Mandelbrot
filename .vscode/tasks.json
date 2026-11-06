@@ -1,26 +1,11 @@
 {
     "tasks": [
         {
-            "type": "cppbuild",
-            "label": "C/C++: cl.exe compilar archivo activo",
-            "command": "cl.exe",
-            "args": [
-                "/Zi",
-                "/EHsc",
-                "/nologo",
-                "/Ot",
-                "/Fo${fileDirname}\\intermediate\\",
-                "/Fd${fileDirname}\\intermediate\\",                
-                "/Fe${fileDirname}\\${fileBasenameNoExtension}.exe",
-                "${workspaceFolder}/*.c",
-                "${workspaceFolder}/source/*.c",
-                "user32.lib",
-                "Gdi32.lib",
-                "Comctl32.lib",
-                "menu.res"
-            ],
+            "type": "shell",
+            "label": "Compilar Pfractal",
+            "command": "${workspaceFolder}\\Compila.bat",
             "options": {
-                "cwd": "${fileDirname}"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [
                 "$msCompile"
@@ -29,7 +14,7 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "detail": "Tarea generada por el depurador."
+            "detail": "Compila menu.rc y todos los .c con cl.exe (requiere Developer Command Prompt)."
         }
     ],
     "version": "2.0.0"

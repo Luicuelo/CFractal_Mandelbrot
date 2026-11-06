@@ -1,13 +1,15 @@
 #include "fractal_calc.h"
 
 int max_iterations = DEFAULT_MAXITERATIONS;
-BYTE Memory[WINDOW_HEIGHT][WINDOW_WIDTH];
-int temp_rect;
+uint32_t Memory[WINDOW_HEIGHT][WINDOW_WIDTH];
+
+bool invertColors = false;
+bool juliaMode = false;
 
 bool isColorRotationActive = false;
-bool isButtonPressed;
-bool isImageLoaded;
-bool isAutomaticZoomOn;
+bool isButtonPressed = false;
+bool isImageLoaded = false;
+bool isAutomaticZoomOn = false;
 
 int mouse_move_x;
 int mouse_move_y;
@@ -17,7 +19,7 @@ int mouse_down_y;
 int mouse_up_x;
 int mouse_up_y;
 
-int color_offset;
+int color_offset = 0;
 int global_pixel_size;
 
 double current_zoom = 1.0;
@@ -34,31 +36,37 @@ int getOptimalThreadCount(void)
 {
   SYSTEM_INFO sysinfo;
   GetSystemInfo(&sysinfo);
-  int cores = (int)sysinfo.dwNumberOfProcessors - 2;
+  int cores = (int)sysinfo.dwNumberOfProcessors;
 
   if (cores <= 0)
-    return 4;					  // Fallback for detection failure
+    return 1;					  // Fallback for detection failure
   return (cores > 16) ? 16 : cores; // Cap at 16 to avoid thread overhead
 }
 
 void onClearMemory()
 {
-  memset(Memory, 0, WINDOW_HEIGHT * WINDOW_WIDTH * sizeof(BYTE));
+  // All bytes 0xFF means every uint32_t entry is ITERATION_UNKNOWN.
+  memset(Memory, 0xFF, sizeof(Memory));
 }
 
 #ifdef useUniformBlockOptimization
-static void fillMemorySquare(int x, int y, int w, int h, BYTE value)
+static void fillMemorySquare(int x, int y, int w, int h, uint32_t value)
 {
   if (x < 0)
     x = 0;
   if (y < 0)
     y = 0;
-  if (x + w > WINDOW_WIDTH - 1)
-    w = WINDOW_WIDTH - 1 - x;
-  if (y + h > WINDOW_HEIGHT - 1)
-    h = WINDOW_HEIGHT - 1 - y;
-  for (int a = 0; a < h; a++)
-    memset(&Memory[y + a][x], value, w);
+  if (x >= WINDOW_WIDTH || y >= WINDOW_HEIGHT)
+    return;
+  if (x + w > WINDOW_WIDTH)
+    w = WINDOW_WIDTH - x;
+  if (y + h > WINDOW_HEIGHT)
+    h = WINDOW_HEIGHT - y;
+  for (int a = 0; a < h; a++) {
+    uint32_t *row = &Memory[y + a][x];
+    for (int b = 0; b < w; b++)
+      row[b] = value;
+  }
 }
 
 static bool isDeepInsideSet(int xc, int yc, int blockSize)
@@ -77,15 +85,15 @@ static bool isDeepInsideSet(int xc, int yc, int blockSize)
   return true;
 }
 
-static void optimizeWhenCornersEqual(int xc, int yc, int blockSize, BYTE current)
+static void optimizeWhenCornersEqual(int xc, int yc, int blockSize, uint32_t current)
 {
   if (blockSize > 1 && xc >= blockSize && yc >= blockSize && blockSize <= BLOCK_OPTIMIZATION_SIZE)
   {
-    BYTE topLeft = Memory[yc - blockSize][xc - blockSize];
-    BYTE topRight = Memory[yc - blockSize][xc];
-    BYTE bottomLeft = Memory[yc][xc - blockSize];
+    uint32_t topLeft = Memory[yc - blockSize][xc - blockSize];
+    uint32_t topRight = Memory[yc - blockSize][xc];
+    uint32_t bottomLeft = Memory[yc][xc - blockSize];
 
-    if (current == 0)
+    if (current == ITERATION_UNKNOWN)
       return;
     if (!(topLeft == topRight && topRight == bottomLeft && bottomLeft == current))
       return;
@@ -104,9 +112,9 @@ static void optimizeWhenCornersEqual(int xc, int yc, int blockSize, BYTE current
  * @param column Pixel x coordinate
  * @param row Pixel y coordinate
  * @param j Julia Comp * , calculates julia set.
- * @return 255 if in set, otherwise iteration count when diverged
+ * @return MANDELBROTPOINT_VALUE if in set, otherwise iteration count when diverged
  */
-static BYTE calculateMandelbrotPoint(int column, int row, Comp* j)
+static uint32_t calculateMandelbrotPoint(int column, int row, Comp* j)
 {
   int iterations;
   Comp c;
@@ -135,8 +143,9 @@ static BYTE calculateMandelbrotPoint(int column, int row, Comp* j)
 
   for (iterations = 0; iterations < max_iterations && mdSquared(current) <= MANDELBROT_ESCAPE_RADIUS_SQUARED; iterations++)
   {
-    Comp tempComp = *j;
+
     if (j != NULL) {
+      Comp tempComp = *j;
       squareAddAssign(current, tempComp);
     }
     else {
@@ -152,13 +161,13 @@ static BYTE calculateMandelbrotPoint(int column, int row, Comp* j)
 
 static void calculateAndDraw(Point* p)
 {
-  BYTE iterations;
+  uint32_t iterations;
   int xc = p->x;
   int yc = p->y;
   int blockSize = p->blockSize;
 
   iterations = Memory[yc][xc];
-  if (iterations == 0)
+  if (iterations == ITERATION_UNKNOWN)
   {
 
     if (juliaMode) {
@@ -196,7 +205,7 @@ static void renderFractalInternal(RenderFractalInternalParams* rp)
   {
     for (int j = 0; j * pcurrent_block_size < WINDOW_HEIGHT; j += 1)
     {
-      if (pcurrent_block_size == 1 && Memory[j][i] != 0)
+      if (pcurrent_block_size == 1 && Memory[j][i] != ITERATION_UNKNOWN)
       {
         drawSquare(i, j, 1, Memory[j][i]);
       }
@@ -213,19 +222,23 @@ static void renderFractalInternal(RenderFractalInternalParams* rp)
 
 static int drawSelectionRectangle(HDC hDC)
 {
-  if (isImageLoaded && isButtonPressed)
-  {
-    HPEN pen1 = CreatePen(PS_DASH, 1, RGB(50, 255, 50));
-    HBRUSH br = (HBRUSH)GetStockObject(HOLLOW_BRUSH);
-    HPEN oldpen = (HPEN)SelectObject(hDC, pen1);
-    HBRUSH oldbr = (HBRUSH)SelectObject(hDC, br);
-    int rs = Rectangle(hDC, mouse_down_x, mouse_down_y, mouse_up_x, mouse_up_y);
-    SelectObject(hDC, oldpen);
-    SelectObject(hDC, oldbr);
-    DeleteObject(pen1);
-    return rs;
-  }
-  return 0;
+  if (hDC == NULL || !isImageLoaded || !isButtonPressed)
+    return 0;
+
+  int x0 = (mouse_down_x < mouse_up_x) ? mouse_down_x : mouse_up_x;
+  int y0 = (mouse_down_y < mouse_up_y) ? mouse_down_y : mouse_up_y;
+  int x1 = (mouse_down_x > mouse_up_x) ? mouse_down_x : mouse_up_x;
+  int y1 = (mouse_down_y > mouse_up_y) ? mouse_down_y : mouse_up_y;
+
+  HPEN pen1 = CreatePen(PS_DASH, 1, RGB(50, 255, 50));
+  HBRUSH br = (HBRUSH)GetStockObject(HOLLOW_BRUSH);
+  HPEN oldpen = (HPEN)SelectObject(hDC, pen1);
+  HBRUSH oldbr = (HBRUSH)SelectObject(hDC, br);
+  int rs = Rectangle(hDC, x0, y0, x1, y1);
+  SelectObject(hDC, oldpen);
+  SelectObject(hDC, oldbr);
+  DeleteObject(pen1);
+  return rs;
 }
 
 static void expandMemory(int startX, int startY, int newWidth, int newHeight, double scaleX, double scaleY)
@@ -237,24 +250,29 @@ static void expandMemory(int startX, int startY, int newWidth, int newHeight, do
     return;
   }
 
-  if (newWidth > INT_MAX / newHeight || (size_t)newWidth * newHeight > SIZE_MAX / sizeof(BYTE))
-  {
+  if (startX + newWidth > WINDOW_WIDTH)
+    newWidth = WINDOW_WIDTH - startX;
+  if (startY + newHeight > WINDOW_HEIGHT)
+    newHeight = WINDOW_HEIGHT - startY;
+  if (newWidth <= 0 || newHeight <= 0)
     return;
-  }
 
-  BYTE* oldMemoryToExpand = (BYTE*)malloc((size_t)newHeight * newWidth * sizeof(BYTE));
+  size_t count = (size_t)newWidth * (size_t)newHeight;
+  if (count > SIZE_MAX / sizeof(uint32_t))
+    return;
+
+  uint32_t* oldMemoryToExpand = (uint32_t*)malloc(count * sizeof(uint32_t));
   if (oldMemoryToExpand == NULL)
-  {
     return;
-  }
 
-  for (int i = 0; i < newHeight && (startY + i) < WINDOW_HEIGHT; i++)
+  // Start from "unknown" so any uncovered position is recalculated later.
+  memset(oldMemoryToExpand, 0xFF, count * sizeof(uint32_t));
+
+  for (int i = 0; i < newHeight; i++)
   {
-    int copyWidth = (startX + newWidth <= WINDOW_WIDTH) ? newWidth : (WINDOW_WIDTH - startX);
-    if (copyWidth > 0)
-    {
-      memcpy(&oldMemoryToExpand[i * newWidth], &Memory[startY + i][startX], copyWidth);
-    }
+    memcpy(&oldMemoryToExpand[(size_t)i * newWidth],
+           &Memory[startY + i][startX],
+           (size_t)newWidth * sizeof(uint32_t));
   }
   onClearMemory();
 
@@ -262,13 +280,17 @@ static void expandMemory(int startX, int startY, int newWidth, int newHeight, do
   {
     for (int j = 0; j < newWidth; j++)
     {
-      int posy = (int)(i / scaleY);
-      int posx = (int)(j / scaleX);
+      uint32_t value = oldMemoryToExpand[(size_t)i * newWidth + j];
+      if (value == ITERATION_UNKNOWN)
+        continue;
+
+      int posy = (int)((double)i / scaleY);
+      int posx = (int)((double)j / scaleX);
 
       if (posy >= 0 && posy < WINDOW_HEIGHT && posx >= 0 && posx < WINDOW_WIDTH)
       {
-        Memory[posy][posx] = oldMemoryToExpand[i * newWidth + j];
-        drawSquare(posx, posy, global_pixel_size, (Memory[posy][posx]));
+        Memory[posy][posx] = value;
+        drawSquare(posx, posy, global_pixel_size, value);
       }
     }
   }
@@ -276,18 +298,50 @@ static void expandMemory(int startX, int startY, int newWidth, int newHeight, do
   free(oldMemoryToExpand);
 }
 
-static void rescaleView(int pmouse_down_x, int pmouse_down_y, int pmouse_up_x, int pmouse_up_y)
+// A cached "inside the set" value is only valid for the max_iterations used to
+// compute it. If the limit grows, those pixels must be recomputed.
+static void invalidateSetPoints(void)
 {
-  complex_origin_x += complex_step_x * (double)pmouse_down_x;
-  complex_origin_y += complex_step_y * (double)pmouse_down_y;
+  for (int y = 0; y < WINDOW_HEIGHT; y++)
+  {
+    for (int x = 0; x < WINDOW_WIDTH; x++)
+    {
+      if (Memory[y][x] == MANDELBROTPOINT_VALUE)
+        Memory[y][x] = ITERATION_UNKNOWN;
+    }
+  }
+}
 
-  int newWidth = (pmouse_up_x - pmouse_down_x + 1);
-  int newHeight = (pmouse_up_y - pmouse_down_y + 1);
+static bool rescaleView(int px0, int py0, int px1, int py1)
+{
+  int x0 = (px0 < px1) ? px0 : px1;
+  int y0 = (py0 < py1) ? py0 : py1;
+  int x1 = (px0 > px1) ? px0 : px1;
+  int y1 = (py0 > py1) ? py0 : py1;
+
+  if (x0 < 0) x0 = 0;
+  if (y0 < 0) y0 = 0;
+  if (x1 >= WINDOW_WIDTH) x1 = WINDOW_WIDTH - 1;
+  if (y1 >= WINDOW_HEIGHT) y1 = WINDOW_HEIGHT - 1;
+
+  int newWidth = (x1 - x0 + 1);
+  int newHeight = (y1 - y0 + 1);
+
+  if (newWidth < MIN_ZOOM_SELECTION || newHeight < MIN_ZOOM_SELECTION)
+    return false;
 
   double factorX = (double)newWidth / (double)(WINDOW_WIDTH);
   double factorY = (double)newHeight / (double)(WINDOW_HEIGHT);
 
-  global_pixel_size = (int)(1 / factorX) + 1;
+  if (factorX <= 0.0 || factorY <= 0.0 || factorX > 1.0 || factorY > 1.0)
+    return false;
+
+  complex_origin_x += complex_step_x * (double)x0;
+  complex_origin_y += complex_step_y * (double)y0;
+
+  global_pixel_size = (int)(1.0 / factorX) + 1;
+  if (global_pixel_size < 1)
+    global_pixel_size = 1;
 
   if (isAutomaticZoomOn)
   {
@@ -295,7 +349,7 @@ static void rescaleView(int pmouse_down_x, int pmouse_down_y, int pmouse_up_x, i
   }
   else
   {
-    expandMemory(pmouse_down_x, pmouse_down_y, newWidth, newHeight, factorX, factorY);
+    expandMemory(x0, y0, newWidth, newHeight, factorX, factorY);
   }
 
   complex_step_x *= factorX;
@@ -304,11 +358,21 @@ static void rescaleView(int pmouse_down_x, int pmouse_down_y, int pmouse_up_x, i
   double zoom_factor = 1.0 / ((factorX + factorY) / 2.0);
   absolute_zoom *= zoom_factor;
 
-  max_iterations = (int)(50 + log2(absolute_zoom) * 50);
-  if (max_iterations < 50)
-    max_iterations = 50;
-  if (max_iterations > 2000)
-    max_iterations = 2000;
+  int old_max = max_iterations;
+  int new_max = old_max;
+  if (absolute_zoom > 0.0 && absolute_zoom < 1e300)
+  {
+    double computed = 50.0 + log2(absolute_zoom) * 50.0;
+    if (computed < 50.0)
+      computed = 50.0;
+    if (computed > (double)MAX_ITERATIONS_LIMIT)
+      computed = (double)MAX_ITERATIONS_LIMIT;
+    new_max = (int)computed;
+  }
+  max_iterations = new_max;
+
+  if (new_max > old_max)
+    invalidateSetPoints();
 
   if (complex_step_x < 1e-6)
   {
@@ -319,6 +383,7 @@ static void rescaleView(int pmouse_down_x, int pmouse_down_y, int pmouse_up_x, i
     sprintf_s(s, sizeof(s), "Complex Plane: (%.2f,%.2f) : (%.2f,%.2f)", complex_origin_x, complex_origin_y, complex_origin_x + complex_step_x * WINDOW_WIDTH, complex_origin_y + complex_step_y * WINDOW_HEIGHT);
   }
   updateStatusBar(s, 1, 0);
+  return true;
 }
 
 static void animateColorRotation(void)
@@ -371,7 +436,7 @@ static void renderFractal(void)
     MessageBox(main_window_handle, s, "Debug Pause", MB_OK);
 #endif
   }
-  sprintf_s(s, sizeof(s), "Mouse (%d,%d) Iterations: %d", mouse_move_x, mouse_move_y, max_iterations);
+  sprintf_s(s, sizeof(s), "Mouse (%d,%d) Max iterations: %d", mouse_move_x, mouse_move_y, max_iterations);
   updateStatusBar(s, 0, 0);
   isImageLoaded = TRUE;
 }
@@ -394,18 +459,27 @@ static void animateJulia(void)
 // Initialize fractal to default view (full Mandelbrot set)
 void onInitializeFractal(void)
 {
+  // Stop any animation/interaction mode before resetting the view.
+  juliaMode = false;
+  isAutomaticZoomOn = false;
+  isButtonPressed = false;
+  isImageLoaded = false;
+  isColorRotationActive = false;
+  ReleaseCapture();
+
   mouse_down_x = 0;
   mouse_down_y = 0;
-  mouse_up_x = WINDOW_WIDTH;
-  mouse_up_y = WINDOW_HEIGHT;
+  mouse_up_x = WINDOW_WIDTH - 1;
+  mouse_up_y = WINDOW_HEIGHT - 1;
+  mouse_move_x = WINDOW_WIDTH / 2;
+  mouse_move_y = WINDOW_HEIGHT / 2;
 
   // Set initial complex plane coordinates (standard Mandelbrot view)
   complex_origin_x = -2.2;
   complex_origin_y = -1.5;
 
   color_offset = 0;
-  invertColors = 0;
-  isColorRotationActive = false;
+  invertColors = false;
   absolute_zoom = 1.0;
   max_iterations = DEFAULT_MAXITERATIONS;
 
@@ -436,11 +510,11 @@ static void handleMouseMove(int x, int y, HWND hwnd)
 
   if (isImageLoaded)
   {
-    sprintf_s(s, sizeof(s), "Mouse (%d,%d) Iterations: %d", mouse_move_x, mouse_move_y, max_iterations);
+    sprintf_s(s, sizeof(s), "Mouse (%d,%d) Max iterations: %d", mouse_move_x, mouse_move_y, max_iterations);
   }
   else
   {
-    sprintf_s(s, sizeof(s), "Mouse (%d,%d) Iterations: %d - RENDERING...", mouse_move_x, mouse_move_y, max_iterations);
+    sprintf_s(s, sizeof(s), "Mouse (%d,%d) Max iterations: %d - RENDERING...", mouse_move_x, mouse_move_y, max_iterations);
   }
   updateStatusBar(s, 0, 0);
 
@@ -457,22 +531,42 @@ static void handleMouseMove(int x, int y, HWND hwnd)
 
   if (isImageLoaded && isButtonPressed)
   {
-    int rectWidth, rectHeight;
+    int dx = x - mouse_down_x;
+    int dy = y - mouse_down_y;
+    int side = (dx < 0) ? -dx : dx;
+    int dyAbs = (dy < 0) ? -dy : dy;
+    if (dyAbs > side)
+      side = dyAbs;
+    if (side < 1)
+      side = 1;
 
-    // Make selection rectangle square (maintain aspect ratio)
-    rectWidth = (mouse_up_x - mouse_down_x);
-    rectHeight = (mouse_up_y - mouse_down_y);
-    ((rectWidth) < (rectHeight)) ? (mouse_up_x = mouse_down_x + rectHeight) : (mouse_up_y = mouse_down_y + rectWidth);
+    // Keep the selection square and anchored at the mouse-down point.
+    int upx = mouse_down_x + ((dx < 0) ? -side : side);
+    int upy = mouse_down_y + ((dy < 0) ? -side : side);
+
+    // Never let the selection leave the window.
+    if (upx < 0) upx = 0;
+    if (upx >= WINDOW_WIDTH) upx = WINDOW_WIDTH - 1;
+    if (upy < 0) upy = 0;
+    if (upy >= WINDOW_HEIGHT) upy = WINDOW_HEIGHT - 1;
+
+    mouse_up_x = upx;
+    mouse_up_y = upy;
 
     drawFractalBitmap(hwnd);
     hDC = GetDC(hwnd);
     drawSelectionRectangle(hDC);
 
-    complexStartX = (complex_origin_x + complex_step_x * (double)mouse_down_x);
-    complexStartY = (complex_origin_y + complex_step_y * (double)mouse_down_y);
+    int x0 = (mouse_down_x < mouse_up_x) ? mouse_down_x : mouse_up_x;
+    int y0 = (mouse_down_y < mouse_up_y) ? mouse_down_y : mouse_up_y;
+    int x1 = (mouse_down_x > mouse_up_x) ? mouse_down_x : mouse_up_x;
+    int y1 = (mouse_down_y > mouse_up_y) ? mouse_down_y : mouse_up_y;
 
-    complexEndX = (complex_origin_x + complex_step_x * (double)mouse_up_x);
-    complexEndY = (complex_origin_y + complex_step_y * (double)mouse_up_y);
+    complexStartX = (complex_origin_x + complex_step_x * (double)x0);
+    complexStartY = (complex_origin_y + complex_step_y * (double)y0);
+
+    complexEndX = (complex_origin_x + complex_step_x * (double)(x1 + 1));
+    complexEndY = (complex_origin_y + complex_step_y * (double)(y1 + 1));
 
     if (complex_step_x < 1e-6)
     {
@@ -484,7 +578,8 @@ static void handleMouseMove(int x, int y, HWND hwnd)
     }
     updateStatusBar(s, 1, 0);
 
-    ReleaseDC(hwnd, hDC);
+    if (hDC != NULL)
+      ReleaseDC(hwnd, hDC);
   }
 
 }
@@ -497,7 +592,7 @@ char* generateSaveFilename(void)
   double txf = (complex_step_x * ((double)(WINDOW_WIDTH)) + complex_origin_x) * 100.0;
   double tyf = (complex_step_y * ((double)(WINDOW_HEIGHT)) + complex_origin_y) * 100.0;
 
-  sprintf_s(s, sizeof(s), "Fractal%2.0f_%2.0f_%2.0f_%2.0f.bmp ", txi, tyi, txf, tyf);
+  sprintf_s(s, sizeof(s), "Fractal%2.0f_%2.0f_%2.0f_%2.0f.bmp", txi, tyi, txf, tyf);
   return (s);
 }
 
@@ -511,12 +606,14 @@ static void automaticZoom(void)
   while (isAutomaticZoomOn)
   {
 
-    pmouse_move_x = ((double)mouse_move_x / (double)WINDOW_WIDTH) * (AUTOMATIC_ZOOM_PIXELS * 2);
-    pmouse_move_y = ((double)mouse_move_y / (double)WINDOW_HEIGHT) * (AUTOMATIC_ZOOM_PIXELS * 2);
+    pmouse_move_x = mouse_move_x * (AUTOMATIC_ZOOM_PIXELS * 2) / WINDOW_WIDTH;
+    pmouse_move_y = mouse_move_y * (AUTOMATIC_ZOOM_PIXELS * 2) / WINDOW_HEIGHT;
 
-    rescaleView(pmouse_move_x, pmouse_move_y, pmouse_move_x + reduceddWith, pmouse_move_y + reducedHeight);
-    onRepaint();
-    renderFractal();
+    if (rescaleView(pmouse_move_x, pmouse_move_y, pmouse_move_x + reduceddWith, pmouse_move_y + reducedHeight))
+    {
+      onRepaint();
+      renderFractal();
+    }
 
     onClearMessageQueue();
 
@@ -532,18 +629,22 @@ static void automaticZoom(void)
 // Cancel zoom selection and redraw fractal without selection rectangle
 void onFractalCancelSelection(void)
 {
-  if (isButtonPressed)
-  {
-    isButtonPressed = FALSE;
-    onRepaint();
+  if (!isButtonPressed)
+    return;
 
-    // Restore current view coordinates in status bar
-    sprintf_s(s, sizeof(s), "Complex Plane: (%.2f,%.2f) : (%.2f,%.2f)",
-      complex_origin_x, complex_origin_y,
-      complex_origin_x + complex_step_x * WINDOW_WIDTH,
-      complex_origin_y + complex_step_y * WINDOW_HEIGHT);
-    updateStatusBar(s, 1, 0);
-  }
+  isButtonPressed = FALSE;
+  if (main_window_handle == NULL)
+    return;
+
+  ReleaseCapture();
+  onRepaint();
+
+  // Restore current view coordinates in status bar
+  sprintf_s(s, sizeof(s), "Complex Plane: (%.2f,%.2f) : (%.2f,%.2f)",
+    complex_origin_x, complex_origin_y,
+    complex_origin_x + complex_step_x * WINDOW_WIDTH,
+    complex_origin_y + complex_step_y * WINDOW_HEIGHT);
+  updateStatusBar(s, 1, 0);
 }
 
 void onFractalKeyPress(BYTE key)
@@ -594,21 +695,44 @@ void onFractalMouseDown(int x, int y)
   {
     return;
   }
-  if (isImageLoaded&&!juliaMode)
+  if (isImageLoaded && !juliaMode)
   {
     mouse_down_x = x;
     mouse_down_y = y;
+    mouse_up_x = x;
+    mouse_up_y = y;
     isButtonPressed = TRUE;
+    SetCapture(main_window_handle);
   }
 }
 
 void onFractalMouseUp(void)
 {
-  if (isImageLoaded && isButtonPressed)
+  if (!isImageLoaded || !isButtonPressed)
+    return;
+
+  int x0 = (mouse_down_x < mouse_up_x) ? mouse_down_x : mouse_up_x;
+  int y0 = (mouse_down_y < mouse_up_y) ? mouse_down_y : mouse_up_y;
+  int x1 = (mouse_down_x > mouse_up_x) ? mouse_down_x : mouse_up_x;
+  int y1 = (mouse_down_y > mouse_up_y) ? mouse_down_y : mouse_up_y;
+
+  // A click (or a tiny drag) must not zoom to a 1-pixel region.
+  if ((x1 - x0 + 1) < MIN_ZOOM_SELECTION || (y1 - y0 + 1) < MIN_ZOOM_SELECTION)
   {
-    isButtonPressed = FALSE;
-    rescaleView(mouse_down_x, mouse_down_y, mouse_up_x, mouse_up_y);
+    onFractalCancelSelection();
+    return;
+  }
+
+  isButtonPressed = FALSE;
+  ReleaseCapture();
+
+  if (rescaleView(x0, y0, x1, y1))
+  {
     onRepaint();
     renderFractal();
+  }
+  else
+  {
+    onRepaint();
   }
 }

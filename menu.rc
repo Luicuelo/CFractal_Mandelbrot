@@ -7,6 +7,8 @@
 //
 
 IDB_BITMAP1             BITMAP  DISCARDABLE     "LuisCG.bmp"
+IDI_PFRACTAL            ICON                    "Pfractal.ico"
+IDI_SMALL               ICON                    "small.ico"
 /////////////////////////////////////////////////////////////////////////////
 
 dialogo DIALOGEX 6, 18, 204, 95
